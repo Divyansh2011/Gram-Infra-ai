@@ -1,0 +1,1764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n-key="appTitle">Village Infrastructure Hub</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS (for OpenStreetMap) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .section {
+            display: none; /* Hidden by default, shown by JS */
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .section.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card {
+            background-color: #fff;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn-primary {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem; /* rounded-lg */
+            font-weight: 500; /* font-medium */
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca; /* indigo-700 */
+        }
+        .btn-secondary {
+            background-color: #e5e7eb; /* gray-200 */
+            color: #4b5563; /* gray-700 */
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background-color: #d1d5db; /* gray-300 */
+        }
+        input[type="text"], input[type="email"], input[type="password"], textarea, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db; /* gray-300 */
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, textarea:focus, select:focus {
+            border-color: #6366f1; /* indigo-500 */
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        .nav-link {
+            cursor: pointer;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s ease;
+        }
+        .nav-link:hover {
+            background-color: #e0e7ff; /* indigo-100 */
+        }
+        .nav-link.active {
+            background-color: #c7d2fe; /* indigo-200 */
+            font-weight: 600;
+            color: #3730a3; /* indigo-800 */
+        }
+        /* Custom modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 0.75rem;
+            width: 80%; /* Could be more responsive */
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        /* Map specific styles */
+        #mapid {
+            height: 300px; /* Fixed height for the map */
+            width: 100%;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 1rem auto;
+            display: none; /* Hidden by default */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .voice-input-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .voice-input-button {
+            background-color: #10b981; /* emerald-500 */
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+        .voice-input-button:hover {
+            background-color: #059669; /* emerald-600 */
+        }
+        .voice-input-button.recording {
+            background-color: #ef4444; /* red-500 */
+        }
+        .voice-input-button.recording:hover {
+            background-color: #dc2626; /* red-600 */
+        }
+        .mic-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Modal for messages -->
+    <div id="messageModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <p id="modalMessage"></p>
+            <button class="btn-primary mt-4" onclick="closeModal()">OK</button>
+        </div>
+    </div>
+
+    <!-- Welcome & Language Selection Section -->
+    <section id="welcomeSection" class="section active flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-4">
+        <div class="text-center">
+            <h1 class="text-5xl md:text-6xl font-bold mb-6 drop-shadow-lg" data-i18n-key="welcomeTitle">Welcome to Village Infrastructure Hub</h1>
+            <p class="text-xl md:text-2xl mb-8" data-i18n-key="welcomeSubtitle">Empowering communities through better infrastructure.</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button class="btn-secondary bg-white text-indigo-700 hover:bg-gray-100" data-lang="en">English</button>
+                <button class="btn-secondary bg-white text-indigo-700 hover:bg-gray-100" data-lang="hi">हिंदी</button>
+                <button class="btn-secondary bg-white text-indigo-700 hover:bg-gray-100" data-lang="bn">বাংলা</button>
+                <button class="btn-secondary bg-white text-indigo-700 hover:bg-gray-100" data-lang="ta">தமிழ்</button>
+                <button class="btn-secondary bg-white text-indigo-700 hover:bg-gray-100" data-lang="te">తెలుగు</button>
+                <button class="btn-secondary bg-white text-indigo-700 hover:bg-gray-100" data-lang="mr">मराठी</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Application Container -->
+    <div id="appContainer" class="hidden min-h-screen bg-gray-100">
+        <!-- Navigation Bar -->
+        <nav class="bg-white shadow-md py-4">
+            <div class="container flex flex-col md:flex-row justify-between items-center">
+                <h2 class="text-2xl font-bold text-indigo-700 mb-4 md:mb-0" data-i18n-key="appName">Gram Infra.AI</h2>
+                <div class="flex flex-wrap gap-2 md:gap-4 text-gray-700 text-sm md:text-base">
+                    <a class="nav-link" data-section="languageSelectionTab" data-i18n-key="navLanguage">Language</a>
+                    <a class="nav-link active" data-section="homeDashboard" data-i18n-key="navHome">Home</a>
+                    <a class="nav-link" data-section="reportIssue" data-i18n-key="navReportIssue">Report Issue</a>
+                    <a class="nav-link" data-section="progressReport" data-i18n-key="navProgressReport">Progress Report</a>
+                    <a class="nav-link" data-section="feedbackHistory" data-i18n-key="navFeedbackHistory">Feedback History</a>
+                    <a class="nav-link" data-section="aiInsights" data-i18n-key="navAIInsights">AI Insights (Gov/NGO)</a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Home Dashboard Section -->
+        <section id="homeDashboard" class="section active container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6" data-i18n-key="dashboardTitle">Home Dashboard</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="card">
+                    <h3 class="text-xl font-semibold mb-3" data-i18n-key="totalIssuesTitle">Total Issues Reported</h3>
+                    <p class="text-4xl font-bold text-indigo-600" id="totalIssues">0</p>
+                    <p class="text-gray-500 mt-2" data-i18n-key="totalIssuesSubtitle">Across all villages</p>
+                </div>
+                <div class="card">
+                    <h3 class="text-xl font-semibold mb-3" data-i18n-key="issuesResolvedTitle">Issues Resolved</h3>
+                    <p class="text-4xl font-bold text-green-600" id="resolvedIssues">0</p>
+                    <p class="text-gray-500 mt-2" data-i18n-key="issuesResolvedSubtitle">Successful interventions</p>
+                </div>
+                <div class="card">
+                    <h3 class="text-xl font-semibold mb-3" data-i18n-key="topNeedsTitle">Top Infrastructure Needs</h3>
+                    <ul class="list-disc list-inside text-gray-700" id="topNeedsList">
+                        <li data-i18n-key="needRoads">Roads & Connectivity</li>
+                        <li data-i18n-key="needWater">Water Supply</li>
+                        <li data-i18n-key="needElectricity">Electricity</li>
+                        <li data-i18n-key="needSanitation">Sanitation</li>
+                    </ul>
+                </div>
+                <div class="card col-span-1 md:col-span-2 lg:col-span-3">
+                    <h3 class="text-xl font-semibold mb-3" data-i18n-key="aboutInfraTitle">About Poor Infrastructure in Villages</h3>
+                    <p class="text-gray-700 leading-relaxed" data-i18n-key="aboutInfraText">
+                        Poor infrastructure in villages significantly hinders socio-economic development, impacting the quality of life for millions. Issues such as unpaved roads, inadequate water supply, unreliable electricity, and lack of proper sanitation facilities are prevalent. This platform aims to bridge the gap between citizens and authorities by providing a streamlined way to report issues, track progress, and gather data for informed decision-making. By empowering villagers to voice their concerns, we can collectively work towards building more resilient and prosperous rural communities.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Report an Issue Section -->
+        <section id="reportIssue" class="section container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6" data-i18n-key="reportIssueTitle">Report a New Issue</h2>
+            <div class="card">
+                <form id="issueReportForm">
+                    <div class="mb-4">
+                        <label for="issueType" class="block text-gray-700 text-sm font-bold mb-2" data-i18n-key="issueTypeLabel">Type of Issue:</label>
+                        <select id="issueType" name="issueType" required>
+                            <option value="" data-i18n-key="selectIssuePlaceholder">Select an issue type</option>
+                            <option value="Roads" data-i18n-key="issueTypeRoads">Roads & Connectivity</option>
+                            <option value="Water" data-i18n-key="issueTypeWater">Water Supply</option>
+                            <option value="Electricity" data-i18n-key="issueTypeElectricity">Electricity</option>
+                            <option value="Sanitation" data-i18n-key="issueTypeSanitation">Sanitation & Drainage</option>
+                            <option value="Education" data-i18n-key="issueTypeEducation">Education Facilities</option>
+                            <option value="Healthcare" data-i18n-key="issueTypeHealthcare">Healthcare Facilities</option>
+                            <option value="Other" data-i18n-key="issueTypeOther">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="villageName" class="block text-gray-700 text-sm font-bold mb-2" data-i18n-key="villageNameLabel">Village Name:</label>
+                        <input type="text" id="villageName" name="villageName" data-i18n-key="villageNamePlaceholder" placeholder="e.g., Rampur" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="issueDescription" class="block text-gray-700 text-sm font-bold mb-2" data-i18n-key="descriptionLabel">Description:</label>
+                        <div class="voice-input-container">
+                            <textarea id="issueDescription" name="issueDescription" rows="5" data-i18n-key="descriptionPlaceholder" placeholder="Describe the issue in detail or click the microphone to speak..." required></textarea>
+                            <button type="button" id="voiceInputBtn" class="voice-input-button" data-i18n-key="speakDescriptionTitle" title="Speak description">
+                                <svg class="mic-icon" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0 5 5 0 01-5 5v1.085l3.97 3.97a1 1 0 101.414-1.414L12 14.586V13a1 1 0 10-2 0v1.586l-1.97-1.97a1 1 0 10-1.414 1.414l3.97 3.97V19a1 1 0 102 0v-.586l1.97 1.97a1 1 0 101.414-1.414L14 17.586V16a1 1 0 10-2 0v1.586l-1.97 1.97a1 1 0 10-1.414 1.414l-3.97-3.97z" clip-rule="evenodd"></path></svg>
+                                <span id="voiceStatus" data-i18n-key="speakButtonText">Speak</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" data-i18n-key="mapLocationLabel">Mark Location on Map:</label>
+                        <div id="mapid"></div>
+                        <p class="text-sm text-gray-600 mt-2" data-i18n-key="mapLocationHint">Click on the map to place a marker at the issue location.</p>
+                        <input type="hidden" id="latitude" name="latitude">
+                        <input type="hidden" id="longitude" name="longitude">
+                        <p id="coordinatesDisplay" class="text-sm text-gray-700 mt-1"></p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="contactEmail" class="block text-gray-700 text-sm font-bold mb-2" data-i18n-key="contactEmailLabel">Your Email (Optional):</label>
+                        <input type="email" id="contactEmail" name="contactEmail" data-i18n-key="contactEmailPlaceholder" placeholder="your.email@example.com">
+                    </div>
+                    <button type="submit" class="btn-primary" data-i18n-key="submitReportButton">Submit Report</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Progress Report Section -->
+        <section id="progressReport" class="section container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6" data-i18n-key="progressReportTitle">Progress Report</h2>
+            <div class="card">
+                <p class="text-gray-700 mb-4" data-i18n-key="progressReportIntro">This section provides a summary of infrastructure development progress across villages. This report can be updated manually or generated by AI based on resolved issues and project completions.</p>
+                <div id="reportContent" class="space-y-4">
+                    <h3 class="text-xl font-semibold mb-3" data-i18n-key="overallProgressSummaryTitle">Overall Progress Summary</h3>
+                    <p class="text-gray-700" data-i18n-key="overallProgressSummaryText">
+                        As of <span id="reportDate">July 22, 2025</span>, significant strides have been made in addressing infrastructure challenges in rural areas.
+                        A total of <span class="font-bold" id="reportResolvedCount">0</span> issues have been successfully resolved, demonstrating effective intervention.
+                        The primary focus areas for improvement continue to be <span class="font-bold" id="reportTopIssue">roads and water supply</span>.
+                    </p>
+                    <h3 class="text-xl font-semibold mb-3" data-i18n-key="keyAchievementsTitle">Key Achievements</h3>
+                    <ul class="list-disc list-inside text-gray-700">
+                        <li data-i18n-key="achievement1">Completion of 5 km of new rural roads in the last quarter.</li>
+                        <li data-i18n-key="achievement2">Installation of 10 new hand pumps providing clean water access to 7 villages.</li>
+                        <li data-i18n-key="achievement3">Upgradation of electricity infrastructure in 3 villages, reducing power outages.</li>
+                    </ul>
+                    <h3 class="text-xl font-semibold mb-3" data-i18n-key="upcomingInitiativesTitle">Upcoming Initiatives</h3>
+                    <ul class="list-disc list-inside text-gray-700">
+                        <li data-i18n-key="initiative1">Planned sanitation drive in 5 high-priority villages.</li>
+                        <li data-i18n-key="initiative2">New school building construction to commence in Rampur by Q4 2025.</li>
+                    </ul>
+                </div>
+                <button class="btn-primary mt-6" onclick="updateProgressReport()" data-i18n-key="updateReportButton">Update Report</button>
+            </div>
+        </section>
+
+        <!-- Citizen Feedback History Section -->
+        <section id="feedbackHistory" class="section container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6" data-i18n-key="feedbackHistoryTitle">Your Feedback History</h2>
+            <div class="card">
+                <p class="text-gray-700 mb-4" data-i18n-key="feedbackHistoryIntro">View the issues you have reported previously and their current status.</p>
+                <div id="historyList" class="space-y-4">
+                    <p class="text-gray-500" id="noHistoryMessage" data-i18n-key="noHistoryMessage">No issues reported yet.</p>
+                    <!-- Reported issues will be dynamically added here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Insights (for Government/NGO Users) Section -->
+        <section id="aiInsights" class="section container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6" data-i18n-key="aiInsightsTitle">AI Insights (Government/NGO Users)</h2>
+            <div class="card" id="aiLoginCard">
+                <p class="mb-4 text-gray-700" data-i18n-key="aiLoginIntro">This section provides data-driven insights for authorized government and NGO users. Please log in to proceed.</p>
+                <form id="aiLoginForm">
+                    <div class="mb-4">
+                        <label for="aiPassword" class="block text-gray-700 text-sm font-bold mb-2" data-i18n-key="passwordLabel">Password:</label>
+                        <input type="password" id="aiPassword" name="aiPassword" data-i18n-key="passwordPlaceholder" placeholder="Enter password" required>
+                    </div>
+                    <button type="submit" class="btn-primary" data-i18n-key="loginButton">Login</button>
+                </form>
+            </div>
+
+            <div class="card hidden" id="aiContentCard">
+                <h3 class="text-xl font-semibold mb-3" data-i18n-key="infraAnalysisTitle">Infrastructure Needs Analysis</h3>
+                <p class="text-gray-700 mb-4" id="aiIntroText" data-i18n-key="aiIntroText">
+                    Leveraging AI to identify critical infrastructure gaps and prioritize interventions. Click "Generate Insights" to see the latest analysis.
+                </p>
+                <button class="btn-primary mb-6" onclick="generateAIInsights()" data-i18n-key="generateInsightsButton">Generate Insights</button>
+
+                <div id="aiInsightsOutput">
+                    <div class="loading-spinner" id="aiLoadingSpinner"></div>
+                    <!-- AI generated content will be dynamically added here -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-lg mb-2" data-i18n-key="topReportedIssuesTitle">Top Reported Issues:</h4>
+                        <ul class="list-disc list-inside text-gray-700" id="aiTopIssues">
+                            <li data-i18n-key="clickToLoad">Click "Generate Insights" to load data.</li>
+                        </ul>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="font-medium text-lg mb-2" data-i18n-key="urgentVillagesTitle">Villages Requiring Urgent Attention:</h4>
+                        <ul class="list-disc list-inside text-gray-700" id="aiUrgentVillages">
+                            <li data-i18n-key="clickToLoad">Click "Generate Insights" to load data.</li>
+                        </ul>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="font-medium text-lg mb-2" data-i18n-key="resourceSuggestionsTitle">Resource Allocation Suggestions:</h4>
+                        <p class="text-gray-700" id="aiResourceSuggestions" data-i18n-key="clickToLoad">
+                            Click "Generate Insights" to load data.
+                        </p>
+                    </div>
+                </div>
+                <button class="btn-secondary" onclick="logoutAI()" data-i18n-key="logoutButton">Logout</button>
+            </div>
+        </section>
+
+        <!-- Language Selection Tab -->
+        <section id="languageSelectionTab" class="section container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6" data-i18n-key="selectLanguageTitle">Select Your Language</h2>
+            <div class="card">
+                <p class="text-gray-700 mb-6" data-i18n-key="selectLanguageIntro">Choose your preferred language for the application interface:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <button class="btn-secondary" data-lang="en">English</button>
+                    <button class="btn-secondary" data-lang="hi">हिंदी (Hindi)</button>
+                    <button class="btn-secondary" data-lang="bn">বাংলা (Bengali)</button>
+                    <button class="btn-secondary" data-lang="ta">தமிழ் (Tamil)</button>
+                    <button class="btn-secondary" data-lang="te">తెలుగు (Telugu)</button>
+                    <button class="btn-secondary" data-lang="mr">मराठी (Marathi)</button>
+                </div>
+                <p class="text-sm text-gray-500 mt-6" data-i18n-key="languageNote">Note: Changing the language here will update the interface text where translations are available. Data content will remain in its original input language.</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- Leaflet JS (for OpenStreetMap) -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Global variables for language and data
+        let currentLanguage = 'en';
+        let reportedIssues = []; // Stores reported issues
+        const AI_PASSWORD = "admin"; // Simple password for AI Insights
+
+        // Map variables
+        let mymap; // Leaflet map instance
+        let marker; // Leaflet marker instance
+        let selectedLatitude = '';
+        let selectedLongitude = '';
+
+        // Web Speech API variables
+        let recognition;
+        let isRecording = false;
+
+        // DOM Elements
+        const welcomeSection = document.getElementById('welcomeSection');
+        const appContainer = document.getElementById('appContainer');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const sections = document.querySelectorAll('.section');
+        const issueReportForm = document.getElementById('issueReportForm');
+        const historyList = document.getElementById('historyList');
+        const noHistoryMessage = document.getElementById('noHistoryMessage');
+        const totalIssuesDisplay = document.getElementById('totalIssues');
+        const resolvedIssuesDisplay = document.getElementById('resolvedIssues');
+        const aiLoginForm = document.getElementById('aiLoginForm');
+        const aiLoginCard = document.getElementById('aiLoginCard');
+        const aiContentCard = document.getElementById('aiContentCard');
+        const messageModal = document.getElementById('messageModal');
+        const modalMessage = document.getElementById('modalMessage');
+        const closeModalButton = document.querySelector('#messageModal .close-button');
+        const latitudeInput = document.getElementById('latitude');
+        const longitudeInput = document.getElementById('longitude');
+        const coordinatesDisplay = document.getElementById('coordinatesDisplay');
+        const aiTopIssuesList = document.getElementById('aiTopIssues');
+        const aiUrgentVillagesList = document.getElementById('aiUrgentVillages');
+        const aiResourceSuggestionsPara = document.getElementById('aiResourceSuggestions');
+        const topNeedsListDashboard = document.getElementById('topNeedsList');
+        const aiLoadingSpinner = document.getElementById('aiLoadingSpinner');
+        const issueDescriptionTextarea = document.getElementById('issueDescription');
+        const voiceInputBtn = document.getElementById('voiceInputBtn');
+        const voiceStatusSpan = document.getElementById('voiceStatus');
+        const reportDateSpan = document.getElementById('reportDate');
+        const reportResolvedCountSpan = document.getElementById('reportResolvedCount');
+        const reportTopIssueSpan = document.getElementById('reportTopIssue');
+
+
+        // --- Translation Data ---
+        const translations = {
+            en: {
+                appTitle: `Village Infrastructure Hub`,
+                welcomeTitle: `Welcome to Village Infrastructure Hub`,
+                welcomeSubtitle: `Empowering communities through better infrastructure.`,
+                appName: `Gram Infra.AI`,
+                navLanguage: `Language`,
+                navHome: `Home`,
+                navReportIssue: `Report Issue`,
+                navProgressReport: `Progress Report`,
+                navFeedbackHistory: `Feedback History`,
+                navAIInsights: `AI Insights (Gov/NGO)`,
+                dashboardTitle: `Home Dashboard`,
+                totalIssuesTitle: `Total Issues Reported`,
+                totalIssuesSubtitle: `Across all villages`,
+                issuesResolvedTitle: `Issues Resolved`,
+                issuesResolvedSubtitle: `Successful interventions`,
+                topNeedsTitle: `Top Infrastructure Needs`,
+                needRoads: `Roads & Connectivity`,
+                needWater: `Water Supply`,
+                needElectricity: `Electricity`,
+                needSanitation: `Sanitation`,
+                aboutInfraTitle: `About Poor Infrastructure in Villages`,
+                aboutInfraText: `Poor infrastructure in villages significantly hinders socio-economic development, impacting the quality of life for millions. Issues such as unpaved roads, inadequate water supply, unreliable electricity, and lack of proper sanitation facilities are prevalent. This platform aims to bridge the gap between citizens and authorities by providing a streamlined way to report issues, track progress, and gather data for informed decision-making. By empowering villagers to voice their concerns, we can collectively work towards building more resilient and prosperous rural communities.`,
+                reportIssueTitle: `Report a New Issue`,
+                issueTypeLabel: `Type of Issue:`,
+                selectIssuePlaceholder: `Select an issue type`,
+                issueTypeRoads: `Roads & Connectivity`,
+                issueTypeWater: `Water Supply`,
+                issueTypeElectricity: `Electricity`,
+                issueTypeSanitation: `Sanitation & Drainage`,
+                issueTypeEducation: `Education Facilities`,
+                issueTypeHealthcare: `Healthcare Facilities`,
+                issueTypeOther: `Other`,
+                villageNameLabel: `Village Name:`,
+                villageNamePlaceholder: `e.g., Rampur`,
+                descriptionLabel: `Description:`,
+                descriptionPlaceholder: `Describe the issue in detail or click the microphone to speak...`,
+                speakDescriptionTitle: `Speak description`,
+                speakButtonText: `Speak`,
+                mapLocationLabel: `Mark Location on Map:`,
+                mapLocationHint: `Click on the map to place a marker at the issue location.`,
+                contactEmailLabel: `Your Email (Optional):`,
+                contactEmailPlaceholder: `your.email@example.com`,
+                submitReportButton: `Submit Report`,
+                progressReportTitle: `Progress Report`,
+                progressReportIntro: `This section provides a summary of infrastructure development progress across villages. This report can be updated manually or generated by AI based on resolved issues and project completions.`,
+                overallProgressSummaryTitle: `Overall Progress Summary`,
+                overallProgressSummaryText: `As of <span id="reportDate">July 22, 2025</span>, significant strides have been made in addressing infrastructure challenges in rural areas. A total of <span class="font-bold" id="reportResolvedCount">0</span> issues have been successfully resolved, demonstrating effective intervention. The primary focus areas for improvement continue to be <span class="font-bold" id="reportTopIssue">roads and water supply</span>.`,
+                keyAchievementsTitle: `Key Achievements`,
+                achievement1: `Completion of 5 km of new rural roads in the last quarter.`,
+                achievement2: `Installation of 10 new hand pumps providing clean water access to 7 villages.`,
+                achievement3: `Upgradation of electricity infrastructure in 3 villages, reducing power outages.`,
+                upcomingInitiativesTitle: `Upcoming Initiatives`,
+                initiative1: `Planned sanitation drive in 5 high-priority villages.`,
+                initiative2: `New school building construction to commence in Rampur by Q4 2025.`,
+                updateReportButton: `Update Report`,
+                feedbackHistoryTitle: `Your Feedback History`,
+                feedbackHistoryIntro: `View the issues you have reported previously and their current status.`,
+                noHistoryMessage: `No issues reported yet.`,
+                aiInsightsTitle: `AI Insights (Government/NGO Users)`,
+                aiLoginIntro: `This section provides data-driven insights for authorized government and NGO users. Please log in to proceed.`,
+                passwordLabel: `Password:`,
+                passwordPlaceholder: `Enter password`,
+                loginButton: `Login`,
+                infraAnalysisTitle: `Infrastructure Needs Analysis`,
+                aiIntroText: `Leveraging AI to identify critical infrastructure gaps and prioritize interventions. Click "Generate Insights" to see the latest analysis.`,
+                generateInsightsButton: `Generate Insights`,
+                topReportedIssuesTitle: `Top Reported Issues:`,
+                urgentVillagesTitle: `Villages Requiring Urgent Attention:`,
+                resourceSuggestionsTitle: `Resource Allocation Suggestions:`,
+                clickToLoad: `Click "Generate Insights" to load data.`,
+                logoutButton: `Logout`,
+                selectLanguageTitle: `Select Your Language`,
+                selectLanguageIntro: `Choose your preferred language for the application interface:`,
+                languageNote: `Note: Changing the language here will update the interface text where translations are available. Data content will remain in its original input language.`,
+                modalLocationSelected: `Location selected: Latitude {lat}, Longitude {lon}`,
+                modalLocationNeeded: `Please click on the map to select the issue location.`,
+                modalReportSuccess: `Your issue has been reported successfully! Thank you for your feedback.`,
+                modalIssueDeleted: `Issue deleted successfully!`,
+                modalNoInsights: `No issues reported yet to generate insights from. Please report some issues first.`,
+                modalInsightsGenerated: `Insights generated successfully by AI!`,
+                modalInsightsFailed: `Failed to get insights from AI. Please try again.`,
+                modalApiError: `An error occurred while connecting to the AI. Please check your internet connection and try again.`,
+                modalLoginSuccess: `Login successful! Welcome, Government/NGO User.`,
+                modalLoginFailed: `Incorrect password. Please try again.`,
+                modalLogoutSuccess: `Logged out successfully.`,
+                modalVoiceNotSupported: `Voice input is not supported by your browser. Please use the keyboard to type the description.`,
+                modalVoiceError: `Voice input error: {error}. Please try again.`,
+                modalVoiceStartError: `Could not start voice input. Please ensure microphone access is granted.`,
+                modalVoiceReceived: `Voice input received!`,
+                modalReportUpdated: `Progress Report updated!`,
+                speakListening: `Listening...`,
+                speakSpeak: `Speak`,
+                noIssuesReportedYet: `No issues reported yet.`,
+                noDataYet: `No data yet.`,
+                noDataYetReportIssues: `No data yet. Report some issues to generate insights.`,
+                generatingInsights: `Generating insights...`,
+                noSpecificIssueTrends: `No specific issue trends found by AI.`,
+                noUrgentVillages: `No specific villages identified for urgent attention by AI.`,
+                noResourceSuggestions: `AI could not generate specific resource allocation suggestions.`,
+                generalInfraIssues: `general infrastructure issues`,
+                languageSetConfirmation: `Language set to {lang}.`,
+                reported: `Reported`,
+                status: `Status`,
+                deleteButton: `Delete`,
+                statusPending: `Pending`,
+                statusResolved: `Resolved`,
+                speakNowPlaceholder: `Speak now...`
+            },
+            hi: {
+                appTitle: `ग्राम इंफ्रा.एआई`,
+                welcomeTitle: `ग्राम इंफ्रास्ट्रक्चर हब में आपका स्वागत है`,
+                welcomeSubtitle: `बेहतर बुनियादी ढांचे के माध्यम से समुदायों को सशक्त बनाना।`,
+                appName: `ग्राम इंफ्रा.एआई`,
+                navLanguage: `भाषा`,
+                navHome: `होम`,
+                navReportIssue: `समस्या रिपोर्ट करें`,
+                navProgressReport: `प्रगति रिपोर्ट`,
+                navFeedbackHistory: `फीडबैक इतिहास`,
+                navAIInsights: `एआई अंतर्दृष्टि (सरकार/एनजीओ)`,
+                dashboardTitle: `होम डैशबोर्ड`,
+                totalIssuesTitle: `कुल रिपोर्ट किए गए मुद्दे`,
+                totalIssuesSubtitle: `सभी गांवों में`,
+                issuesResolvedTitle: `हल किए गए मुद्दे`,
+                issuesResolvedSubtitle: `सफल हस्तक्षेप`,
+                topNeedsTitle: `शीर्ष बुनियादी ढांचा आवश्यकताएं`,
+                needRoads: `सड़कें और कनेक्टिविटी`,
+                needWater: `जल आपूर्ति`,
+                needElectricity: `बिजली`,
+                needSanitation: `स्वच्छता`,
+                aboutInfraTitle: `गांवों में खराब बुनियादी ढांचे के बारे में`,
+                aboutInfraText: `गांवों में खराब बुनियादी ढांचा सामाजिक-आर्थिक विकास में काफी बाधा डालता है, जिससे लाखों लोगों के जीवन की गुणवत्ता प्रभावित होती है। कच्ची सड़कें, अपर्याप्त जल आपूर्ति, अविश्वसनीय बिजली और उचित स्वच्छता सुविधाओं की कमी जैसे मुद्दे प्रचलित हैं। यह मंच मुद्दों की रिपोर्ट करने, प्रगति को ट्रैक करने और सूचित निर्णय लेने के लिए डेटा इकट्ठा करने का एक सुव्यवस्थित तरीका प्रदान करके नागरिकों और अधिकारियों के बीच की खाई को पाटने का लक्ष्य रखता है। ग्रामीणों को अपनी चिंताओं को व्यक्त करने के लिए सशक्त बनाकर, हम सामूहिक रूप से अधिक लचीले और समृद्ध ग्रामीण समुदायों के निर्माण की दिशा में काम कर सकते हैं।`,
+                reportIssueTitle: `एक नया मुद्दा रिपोर्ट करें`,
+                issueTypeLabel: `समस्या का प्रकार:`,
+                selectIssuePlaceholder: `एक समस्या प्रकार चुनें`,
+                issueTypeRoads: `सड़कें और कनेक्टिविटी`,
+                issueTypeWater: `जल आपूर्ति`,
+                issueTypeElectricity: `बिजली`,
+                issueTypeSanitation: `स्वच्छता और जल निकासी`,
+                issueTypeEducation: `शिक्षा सुविधाएं`,
+                issueTypeHealthcare: `स्वास्थ्य सुविधाएं`,
+                issueTypeOther: `अन्य`,
+                villageNameLabel: `गांव का नाम:`,
+                villageNamePlaceholder: `जैसे, रामपुर`,
+                descriptionLabel: `विवरण:`,
+                descriptionPlaceholder: `समस्या का विस्तार से वर्णन करें या बोलने के लिए माइक्रोफ़ोन पर क्लिक करें...`,
+                speakDescriptionTitle: `विवरण बोलें`,
+                speakButtonText: `बोलें`,
+                mapLocationLabel: `मानचित्र पर स्थान चिह्नित करें:`,
+                mapLocationHint: `समस्या स्थान पर मार्कर लगाने के लिए मानचित्र पर क्लिक करें।`,
+                contactEmailLabel: `आपका ईमेल (वैकल्पिक):`,
+                contactEmailPlaceholder: `आपका.ईमेल@उदाहरण.कॉम`,
+                submitReportButton: `रिपोर्ट सबमिट करें`,
+                progressReportTitle: `प्रगति रिपोर्ट`,
+                progressReportIntro: `यह अनुभाग गांवों में बुनियादी ढांचा विकास की प्रगति का सारांश प्रदान करता है। इस रिपोर्ट को मैन्युअल रूप से अपडेट किया जा सकता है या हल किए गए मुद्दों और परियोजना पूर्णता के आधार पर एआई द्वारा उत्पन्न किया जा सकता है।`,
+                overallProgressSummaryTitle: `समग्र प्रगति सारांश`,
+                overallProgressSummaryText: `जुलाई 22, 2025 तक, ग्रामीण क्षेत्रों में बुनियादी ढांचा चुनौतियों का समाधान करने में महत्वपूर्ण प्रगति हुई है। कुल <span class="font-bold" id="reportResolvedCount">0</span> मुद्दों को सफलतापूर्वक हल किया गया है, जो प्रभावी हस्तक्षेप को दर्शाता है। सुधार के लिए प्राथमिक फोकस क्षेत्र <span class="font-bold" id="reportTopIssue">सड़कें और जल आपूर्ति</span> बने हुए हैं।`,
+                keyAchievementsTitle: `प्रमुख उपलब्धियां`,
+                achievement1: `पिछली तिमाही में 5 किमी नई ग्रामीण सड़कों का निर्माण पूरा हुआ।`,
+                achievement2: `7 गांवों में स्वच्छ पानी की पहुंच प्रदान करने वाले 10 नए हैंडपंप स्थापित किए गए।`,
+                achievement3: `3 गांवों में बिजली के बुनियादी ढांचे का उन्नयन किया गया, जिससे बिजली कटौती कम हुई।`,
+                upcomingInitiativesTitle: `आगामी पहल`,
+                initiative1: `5 उच्च प्राथमिकता वाले गांवों में नियोजित स्वच्छता अभियान।`,
+                initiative2: `रामपुर में Q4 2025 तक नए स्कूल भवन का निर्माण शुरू होगा।`,
+                updateReportButton: `रिपोर्ट अपडेट करें`,
+                feedbackHistoryTitle: `आपका फीडबैक इतिहास`,
+                feedbackHistoryIntro: `आपके द्वारा पहले रिपोर्ट किए गए मुद्दों और उनकी वर्तमान स्थिति देखें।`,
+                noHistoryMessage: `अभी तक कोई समस्या रिपोर्ट नहीं की गई है।`,
+                aiInsightsTitle: `एआई अंतर्दृष्टि (सरकार/एनजीओ उपयोगकर्ता)`,
+                aiLoginIntro: `यह अनुभाग अधिकृत सरकारी और एनजीओ उपयोगकर्ताओं के लिए डेटा-संचालित अंतर्दृष्टि प्रदान करता है। आगे बढ़ने के लिए कृपया लॉग इन करें।`,
+                passwordLabel: `पासवर्ड:`,
+                passwordPlaceholder: `पासवर्ड दर्ज करें`,
+                loginButton: `लॉग इन करें`,
+                infraAnalysisTitle: `बुनियादी ढांचा आवश्यकता विश्लेषण`,
+                aiIntroText: `महत्वपूर्ण बुनियादी ढांचा अंतराल की पहचान करने और हस्तक्षेपों को प्राथमिकता देने के लिए एआई का लाभ उठाना। नवीनतम विश्लेषण देखने के लिए "अंतर्दृष्टि उत्पन्न करें" पर क्लिक करें।`,
+                generateInsightsButton: `अंतर्दृष्टि उत्पन्न करें`,
+                topReportedIssuesTitle: `शीर्ष रिपोर्ट किए गए मुद्दे:`,
+                urgentVillagesTitle: `तत्काल ध्यान देने योग्य गांव:`,
+                resourceSuggestionsTitle: `संसाधन आवंटन सुझाव:`,
+                clickToLoad: `डेटा लोड करने के लिए "अंतर्दृष्टि उत्पन्न करें" पर क्लिक करें।`,
+                logoutButton: `लॉग आउट करें`,
+                selectLanguageTitle: `अपनी भाषा चुनें`,
+                selectLanguageIntro: `एप्लिकेशन इंटरफ़ेस के लिए अपनी पसंदीदा भाषा चुनें:`,
+                languageNote: `ध्यान दें: यहां भाषा बदलने से इंटरफ़ेस टेक्स्ट अपडेट हो जाएगा जहां अनुवाद उपलब्ध हैं। डेटा सामग्री अपनी मूल इनपुट भाषा में रहेगी।`,
+                modalLocationSelected: `स्थान चयनित: अक्षांश {lat}, देशांतर {lon}`,
+                modalLocationNeeded: `कृपया समस्या स्थान का चयन करने के लिए मानचित्र पर क्लिक करें।`,
+                modalReportSuccess: `आपकी समस्या सफलतापूर्वक रिपोर्ट कर दी गई है! आपके फीडबैक के लिए धन्यवाद।`,
+                modalIssueDeleted: `समस्या सफलतापूर्वक हटा दी गई!`,
+                modalNoInsights: `अंतर्दृष्टि उत्पन्न करने के लिए अभी तक कोई समस्या रिपोर्ट नहीं की गई है। कृपया पहले कुछ समस्याएं रिपोर्ट करें।`,
+                modalInsightsGenerated: `एआई द्वारा अंतर्दृष्टि सफलतापूर्वक उत्पन्न की गई!`,
+                modalInsightsFailed: `एआई से अंतर्दृष्टि प्राप्त करने में विफल। कृपया पुनः प्रयास करें।`,
+                modalApiError: `एआई से कनेक्ट करते समय एक त्रुटि हुई। कृपया अपना इंटरनेट कनेक्शन जांचें और पुनः प्रयास करें।`,
+                modalLoginSuccess: `लॉगिन सफल! स्वागत है, सरकार/एनजीओ उपयोगकर्ता।`,
+                modalLoginFailed: `गलत पासवर्ड। कृपया पुनः प्रयास करें।`,
+                modalLogoutSuccess: `सफलतापूर्वक लॉग आउट किया गया।`,
+                modalVoiceNotSupported: `आपके ब्राउज़र द्वारा ध्वनि इनपुट समर्थित नहीं है। कृपया विवरण टाइप करने के लिए कीबोर्ड का उपयोग करें।`,
+                modalVoiceError: `ध्वनि इनपुट त्रुटि: {error}। कृपया पुनः प्रयास करें।`,
+                modalVoiceStartError: `ध्वनि इनपुट शुरू नहीं कर सका। कृपया सुनिश्चित करें कि माइक्रोफ़ोन पहुंच प्रदान की गई है।`,
+                modalVoiceReceived: `ध्वनि इनपुट प्राप्त हुआ!`,
+                modalReportUpdated: `प्रगति रिपोर्ट अपडेट की गई!`,
+                speakListening: `सुन रहा है...`,
+                speakSpeak: `बोलें`,
+                noIssuesReportedYet: `अभी तक कोई समस्या रिपोर्ट नहीं की गई है।`,
+                noDataYet: `अभी तक कोई डेटा नहीं है।`,
+                noDataYetReportIssues: `अभी तक कोई डेटा नहीं है। अंतर्दृष्टि उत्पन्न करने के लिए कुछ समस्याएं रिपोर्ट करें।`,
+                generatingInsights: `अंतर्दृष्टि उत्पन्न हो रही है...`,
+                noSpecificIssueTrends: `एआई द्वारा कोई विशिष्ट समस्या प्रवृत्ति नहीं मिली।`,
+                noUrgentVillages: `एआई द्वारा तत्काल ध्यान देने योग्य कोई विशिष्ट गांव नहीं पहचाना गया।`,
+                noResourceSuggestions: `एआई विशिष्ट संसाधन आवंटन सुझाव उत्पन्न नहीं कर सका।`,
+                generalInfraIssues: `सामान्य बुनियादी ढांचा मुद्दे`,
+                languageSetConfirmation: `भाषा {lang} पर सेट है।`,
+                reported: `रिपोर्ट किया गया`,
+                status: `स्थिति`,
+                deleteButton: `हटाएं`,
+                statusPending: `लंबित`,
+                statusResolved: `हल किया गया`,
+                speakNowPlaceholder: `अब बोलें...`
+            },
+            bn: {
+                appTitle: `গ্রাম ইনফ্রা.এআই`,
+                welcomeTitle: `গ্রাম পরিকাঠামো হাবে স্বাগতম`,
+                welcomeSubtitle: `উন্নত পরিকাঠামোর মাধ্যমে সম্প্রদায়কে শক্তিশালী করা।`,
+                appName: `গ্রাম ইনফ্রা.এআই`,
+                navLanguage: `ভাষা`,
+                navHome: `হোম`,
+                navReportIssue: `সমস্যা রিপোর্ট করুন`,
+                navProgressReport: `অগ্রগতি প্রতিবেদন`,
+                navFeedbackHistory: `প্রতিক্রিয়া ইতিহাস`,
+                navAIInsights: `এআই ইনসাইটস (সরকার/এনজিও)`,
+                dashboardTitle: `হোম ড্যাশবোর্ড`,
+                totalIssuesTitle: `মোট রিপোর্ট করা সমস্যা`,
+                totalIssuesSubtitle: `সমস্ত গ্রামে`,
+                issuesResolvedTitle: `সমাধান করা সমস্যা`,
+                issuesResolvedSubtitle: `সফল হস্তক্ষেপ`,
+                topNeedsTitle: `শীর্ষ পরিকাঠামো প্রয়োজন`,
+                needRoads: `রাস্তা ও সংযোগ`,
+                needWater: `জল সরবরাহ`,
+                needElectricity: `বিদ্যুৎ`,
+                needSanitation: `পরিচ্ছন্নতা`,
+                aboutInfraTitle: `গ্রামের দুর্বল পরিকাঠামো সম্পর্কে`,
+                aboutInfraText: `গ্রামের দুর্বল পরিকাঠামো আর্থ-সামাজিক উন্নয়নে উল্লেখযোগ্যভাবে বাধা দেয়, যা লক্ষ লক্ষ মানুষের জীবনযাত্রার মানকে প্রভাবিত করে। কাঁচা রাস্তা, অপর্যাপ্ত জল সরবরাহ, нена নির্ভরযোগ্য বিদ্যুৎ এবং সঠিক স্যানিটেশন সুবিধার অভাব সাধারণ। এই প্ল্যাটফর্মটি নাগরিকদের এবং কর্তৃপক্ষের মধ্যে ব্যবধান পূরণের লক্ষ্য রাখে যাতে সমস্যাগুলি রিপোর্ট করার, অগ্রগতি ট্র্যাক করার এবং জ্ঞাত সিদ্ধান্ত গ্রহণের জন্য ডেটা সংগ্রহ করার একটি সুসংগঠিত উপায় প্রদান করা যায়। গ্রামবাসীদের তাদের উদ্বেগ প্রকাশ করার ক্ষমতা দিয়ে, আমরা সম্মিলিতভাবে আরও স্থিতিস্থাপক এবং সমৃদ্ধ গ্রামীণ সম্প্রদায় গড়ে তোলার দিকে কাজ করতে পারি।`,
+                reportIssueTitle: `একটি নতুন সমস্যা রিপোর্ট করুন`,
+                issueTypeLabel: `সমস্যার প্রকার:`,
+                selectIssuePlaceholder: `একটি সমস্যার প্রকার নির্বাচন করুন`,
+                issueTypeRoads: `রাস্তা ও সংযোগ`,
+                issueTypeWater: `জল সরবরাহ`,
+                issueTypeElectricity: `বিদ্যুৎ`,
+                issueTypeSanitation: `স্যানিটেশন ও নিষ্কাশন`,
+                issueTypeEducation: `শিক্ষা সুবিধা`,
+                issueTypeHealthcare: `স্বাস্থ্য সুবিধা`,
+                issueTypeOther: `অন্যান্য`,
+                villageNameLabel: `গ্রামের নাম:`,
+                villageNamePlaceholder: `যেমন, রামপুর`,
+                descriptionLabel: `বর্ণনা:`,
+                descriptionPlaceholder: `সমস্যার বিস্তারিত বর্ণনা দিন অথবা কথা বলার জন্য মাইক্রোফোনে ক্লিক করুন...`,
+                speakDescriptionTitle: `বর্ণনা বলুন`,
+                speakButtonText: `বলুন`,
+                mapLocationLabel: `মানচিত্রে অবস্থান চিহ্নিত করুন:`,
+                mapLocationHint: `সমস্যার অবস্থানে একটি মার্কার স্থাপন করতে মানচিত্রে ক্লিক করুন।`,
+                contactEmailLabel: `আপনার ইমেল (ঐচ্ছিক):`,
+                contactEmailPlaceholder: `আপনার.ইমেল@উদাহরণ.कॉम`,
+                submitReportButton: `রিপোর্ট জমা দিন`,
+                progressReportTitle: `অগ্রগতি প্রতিবেদন`,
+                progressReportIntro: `এই বিভাগটি গ্রাম জুড়ে পরিকাঠামো উন্নয়নের অগ্রগতির একটি সারাংশ প্রদান করে। এই প্রতিবেদনটি ম্যানুয়ালি আপডেট করা যেতে পারে অথবা সমাধান করা সমস্যা এবং প্রকল্পের সমাপ্তির উপর ভিত্তি করে এআই দ্বারা তৈরি করা যেতে পারে।`,
+                overallProgressSummaryTitle: `সামগ্রিক অগ্রগতি সারাংশ`,
+                overallProgressSummaryText: `জুলাই 22, 2025 পর্যন্ত, গ্রামীণ এলাকায় পরিকাঠামো চ্যালেঞ্জ মোকাবেলায় উল্লেখযোগ্য অগ্রগতি হয়েছে। মোট <span class="font-bold" id="reportResolvedCount">0</span>টি সমস্যা সফলভাবে সমাধান করা হয়েছে, যা কার্যকর হস্তক্ষেপ প্রদর্শন করে। উন্নতির জন্য প্রাথমিক ফোকাস ক্ষেত্রগুলি হল <span class="font-bold" id="reportTopIssue">রাস্তা এবং জল সরবরাহ</span>।`,
+                keyAchievementsTitle: `মূল অর্জনসমূহ`,
+                achievement1: `গত ত্রৈমাসিকে 5 কিমি নতুন গ্রামীণ রাস্তা নির্মাণ সম্পন্ন হয়েছে।`,
+                achievement2: `7টি গ্রামে বিশুদ্ধ জল সরবরাহ নিশ্চিত করতে 10টি নতুন হ্যান্ডপাম্প স্থাপন করা হয়েছে।`,
+                achievement3: `3টি গ্রামে বিদ্যুৎ পরিকাঠামোর উন্নতি করা হয়েছে, যার ফলে বিদ্যুৎ বিভ্রাট কমেছে।`,
+                upcomingInitiativesTitle: `আসন্ন উদ্যোগ`,
+                initiative1: `5টি উচ্চ অগ্রাধিকার গ্রামে পরিকল্পিত স্যানিটেশন ড্রাইভ।`,
+                initiative2: `রামপুরে Q4 2025 এর মধ্যে নতুন স্কুল ভবন নির্মাণ শুরু হবে।`,
+                updateReportButton: `রিপোর্ট আপডেট করুন`,
+                feedbackHistoryTitle: `আপনার প্রতিক্রিয়া ইতিহাস`,
+                feedbackHistoryIntro: `আপনার পূর্বে রিপোর্ট করা সমস্যা এবং তাদের বর্তমান অবস্থা দেখুন।`,
+                noHistoryMessage: `এখনও কোনো সমস্যা রিপোর্ট করা হয়নি।`,
+                aiInsightsTitle: `এআই ইনসাইটস (সরকার/এনজিও ব্যবহারকারী)`,
+                aiLoginIntro: `এই বিভাগটি অনুমোদিত সরকারি এবং এনজিও ব্যবহারকারীদের জন্য ডেটা-চালিত অন্তর্দৃষ্টি প্রদান করে। এগিয়ে যেতে অনুগ্রহ করে লগ ইন করুন।`,
+                passwordLabel: `পাসওয়ার্ড:`,
+                passwordPlaceholder: `পাসওয়ার্ড লিখুন`,
+                loginButton: `লগ ইন করুন`,
+                infraAnalysisTitle: `পরিকাঠামো প্রয়োজন বিশ্লেষণ`,
+                aiIntroText: `গুরুত্বপূর্ণ পরিকাঠামো ব্যবধান চিহ্নিত করতে এবং হস্তক্ষেপকে অগ্রাধিকার দিতে এআই ব্যবহার করা। সর্বশেষ বিশ্লেষণ দেখতে "ইনসাইটস তৈরি করুন" এ ক্লিক করুন।`,
+                generateInsightsButton: `ইনসাইটস তৈরি করুন`,
+                topReportedIssuesTitle: `শীর্ষ রিপোর্ট করা সমস্যা:`,
+                urgentVillagesTitle: `জরুরী মনোযোগ প্রয়োজন এমন গ্রাম:`,
+                resourceSuggestionsTitle: `সম্পদ বরাদ্দ পরামর্শ:`,
+                clickToLoad: `ডেটা লোড করতে "ইনসাইটস তৈরি করুন" এ ক্লিক করুন।`,
+                logoutButton: `লগ আউট করুন`,
+                selectLanguageTitle: `আপনার ভাষা নির্বাচন করুন`,
+                selectLanguageIntro: `অ্যাপ্লিকেশন ইন্টারফেসের জন্য আপনার পছন্দের ভাষা নির্বাচন করুন:`,
+                languageNote: `দ্রষ্টব্য: এখানে ভাষা পরিবর্তন করলে ইন্টারফেসের পাঠ্য আপডেট হবে যেখানে অনুবাদ উপলব্ধ। ডেটা বিষয়বস্তু তার মূল ইনপুট ভাষাতেই থাকবে।`,
+                modalLocationSelected: `অবস্থান নির্বাচিত: অক্ষাংশ {lat}, দ্রাঘিমাংশ {lon}`,
+                modalLocationNeeded: `সমস্যা অবস্থান নির্বাচন করতে দয়া করে মানচিত্রে ক্লিক করুন।`,
+                modalReportSuccess: `আপনার সমস্যা সফলভাবে রিপোর্ট করা হয়েছে! আপনার প্রতিক্রিয়ার জন্য ধন্যবাদ।`,
+                modalIssueDeleted: `সমস্যা সফলভাবে মুছে ফেলা হয়েছে!`,
+                modalNoInsights: `অন্তর্দৃষ্টি তৈরি করার জন্য এখনও কোনো সমস্যা রিপোর্ট করা হয়নি। দয়া করে প্রথমে কিছু সমস্যা রিপোর্ট করুন।`,
+                modalInsightsGenerated: `এআই দ্বারা সফলভাবে অন্তর্দৃষ্টি তৈরি করা হয়েছে!`,
+                modalInsightsFailed: `এআই থেকে অন্তর্দৃষ্টি পেতে ব্যর্থ। দয়া করে আবার চেষ্টা করুন।`,
+                modalApiError: `এআই এর সাথে সংযোগ করার সময় একটি ত্রুটি ঘটেছে। দয়া করে আপনার ইন্টারনেট সংযোগ পরীক্ষা করুন এবং আবার চেষ্টা করুন।`,
+                modalLoginSuccess: `লগইন সফল! স্বাগতম, সরকার/এনজিও ব্যবহারকারী।`,
+                modalLoginFailed: `ভুল পাসওয়ার্ড। দয়া করে আবার চেষ্টা করুন।`,
+                modalLogoutSuccess: `সফলভাবে লগ আউট করা হয়েছে।`,
+                modalVoiceNotSupported: `আপনার ব্রাউজার দ্বারা ভয়েস ইনপুট সমর্থিত নয়। দয়া করে বর্ণনা টাইপ করতে কীবোর্ড ব্যবহার করুন।`,
+                modalVoiceError: `ভয়েস ইনপুট ত্রুটি: {error}। দয়া করে আবার চেষ্টা করুন।`,
+                modalVoiceStartError: `ভয়েস ইনপুট শুরু করা যায়নি। দয়া করে নিশ্চিত করুন যে মাইক্রোফোন অ্যাক্সেস দেওয়া হয়েছে।`,
+                modalVoiceReceived: `ভয়েস ইনপুট প্রাপ্ত হয়েছে!`,
+                modalReportUpdated: `অগ্রগতি প্রতিবেদন আপডেট করা হয়েছে!`,
+                speakListening: `শুনছে...`,
+                speakSpeak: `বলুন`,
+                noIssuesReportedYet: `এখনও কোনো সমস্যা রিপোর্ট করা হয়নি।`,
+                noDataYet: `এখনও কোনো ডেটা নেই।`,
+                noDataYetReportIssues: `এখনও কোনো ডেটা নেই। অন্তর্দৃষ্টি তৈরি করতে কিছু সমস্যা রিপোর্ট করুন।`,
+                generatingInsights: `অন্তর্দৃষ্টি তৈরি হচ্ছে...`,
+                noSpecificIssueTrends: `এআই দ্বারা কোনো নির্দিষ্ট সমস্যা প্রবণতা পাওয়া যায়নি।`,
+                noUrgentVillages: `এআই দ্বারা জরুরি মনোযোগ প্রয়োজন এমন কোনো নির্দিষ্ট গ্রাম চিহ্নিত করা হয়নি।`,
+                noResourceSuggestions: `এআই নির্দিষ্ট সম্পদ বরাদ্দ পরামর্শ তৈরি করতে পারেনি।`,
+                generalInfraIssues: `সাধারণ পরিকাঠামো সমস্যা`,
+                languageSetConfirmation: `ভাষা {lang} এ সেট করা হয়েছে।`,
+                reported: `রিপোর্ট করা হয়েছে`,
+                status: `অবস্থা`,
+                deleteButton: `মুছুন`,
+                statusPending: `நிலুவையில் আছে`,
+                statusResolved: `সমাধান করা হয়েছে`,
+                speakNowPlaceholder: `এখন কথা বলুন...`
+            },
+            ta: {
+                appTitle: `கிராம உள்கட்டமைப்பு மையம்`,
+                welcomeTitle: `கிராம உள்கட்டமைப்பு மையத்திற்கு வரவேற்கிறோம்`,
+                welcomeSubtitle: `சிறந்த உள்கட்டமைப்பு மூலம் சமூகங்களை மேம்படுத்துதல்.`,
+                appName: `கிராம் இன்ஃப்ரா.AI`,
+                navLanguage: `மொழி`,
+                navHome: `முகப்பு`,
+                navReportIssue: `சிக்கலை புகாரளிக்கவும்`,
+                navProgressReport: `முன்னேற்ற அறிக்கை`,
+                navFeedbackHistory: `கருத்து வரலாறு`,
+                navAIInsights: `AI நுண்ணறிவு (அரசு/NGO)`,
+                dashboardTitle: `முகப்பு டாஷ்போர்டு`,
+                totalIssuesTitle: `மொத்த புகாரளிக்கப்பட்ட சிக்கல்கள்`,
+                totalIssuesSubtitle: `அனைத்து கிராமங்களிலும்`,
+                issuesResolvedTitle: `தீர்க்கப்பட்ட சிக்கல்கள்`,
+                issuesResolvedSubtitle: `வெற்றிகரமான தலையீடுகள்`,
+                topNeedsTitle: `முக்கிய உள்கட்டமைப்பு தேவைகள்`,
+                needRoads: `சாலைகள் & இணைப்பு`,
+                needWater: `நீர் வழங்கல்`,
+                needElectricity: `மின்சாரம்`,
+                needSanitation: `சுகாதாரம்`,
+                aboutInfraTitle: `கிராமங்களில் மோசமான உள்கட்டமைப்பு பற்றி`,
+                aboutInfraText: `கிராமங்களில் மோசமான உள்கட்டமைப்பு சமூக-பொருளாதார வளர்ச்சியை கணிசமாகத் தடுக்கிறது, மில்லியன் கணக்கான மக்களின் வாழ்க்கைத் தரத்தை பாதிக்கிறது. தார் சாலைகள் இல்லாதது, போதுமான நீர் வழங்கல் இல்லாதது, நம்பகத்தன்மையற்ற மின்சாரம் மற்றும் சரியான சுகாதார வசதிகள் இல்லாதது போன்ற சிக்கல்கள் பரவலாக உள்ளன. இந்த தளம் குடிமக்களுக்கும் அதிகாரிகளுக்கும் இடையிலான இடைவெளியைக் குறைப்பதை நோக்கமாகக் கொண்டுள்ளது, சிக்கல்களைப் புகாரளிக்க, முன்னேற்றத்தைக் கண்காணிக்க மற்றும் தகவலறிந்த முடிவுகளை எடுக்க தரவுகளை சேகரிக்க ஒரு சீரான வழியை வழங்குகிறது. கிராமவாசிகளை தங்கள் கவலைகளை வெளிப்படுத்த அதிகாரம் அளிப்பதன் மூலம், நாம் கூட்டாக மிகவும் நெகிழக்கூடிய மற்றும் வளமான கிராமப்புற சமூகங்களை உருவாக்க உழைக்க முடியும்.`,
+                reportIssueTitle: `புதிய சிக்கலைப் புகாரளிக்கவும்`,
+                issueTypeLabel: `சிக்கலின் வகை:`,
+                selectIssuePlaceholder: `ஒரு சிக்கல் வகையைத் தேர்ந்தெடுக்கவும்`,
+                issueTypeRoads: `சாலைகள் & இணைப்பு`,
+                issueTypeWater: `நீர் வழங்கல்`,
+                issueTypeElectricity: `மின்சாரம்`,
+                issueTypeSanitation: `சுகாதாரம் & வடிகால்`,
+                issueTypeEducation: `கல்வி வசதிகள்`,
+                issueTypeHealthcare: `சுகாதார வசதிகள்`,
+                issueTypeOther: `மற்றவை`,
+                villageNameLabel: `கிராமத்தின் பெயர்:`,
+                villageNamePlaceholder: `எ.கா., ராம்பூர்`,
+                descriptionLabel: `விளக்கம்:`,
+                descriptionPlaceholder: `சிக்கலை விரிவாக விவரிக்கவும் அல்லது பேச மைக்ரோஃபோனைக் கிளிக் செய்யவும்...`,
+                speakDescriptionTitle: `விளக்கத்தைப் பேசவும்`,
+                speakButtonText: `பேசவும்`,
+                mapLocationLabel: `வரைபடத்தில் இருப்பிடத்தைக் குறிக்கவும்:`,
+                mapLocationHint: `சிக்கல் உள்ள இடத்தில் ஒரு மார்க்கரை வைக்க வரைபடத்தில் கிளிக் செய்யவும்.`,
+                contactEmailLabel: `உங்கள் மின்னஞ்சல் (விரும்பினால்):`,
+                contactEmailPlaceholder: `உங்கள்.மின்னஞ்சல்@உதாரணம்.காம்`,
+                submitReportButton: `புகாரை சமர்ப்பிக்கவும்`,
+                progressReportTitle: `முன்னேற்ற அறிக்கை`,
+                progressReportIntro: `இந்த பகுதி கிராமங்கள் முழுவதும் உள்கட்டமைப்பு மேம்பாட்டு முன்னேற்றத்தின் சுருக்கத்தை வழங்குகிறது. இந்த அறிக்கையை கைமுறையாக புதுப்பிக்கலாம் அல்லது தீர்க்கப்பட்ட சிக்கல்கள் மற்றும் திட்ட நிறைவுகளின் அடிப்படையில் AI மூலம் உருவாக்கலாம்.`,
+                overallProgressSummaryTitle: `ஒட்டுமொத்த முன்னேற்ற சுருக்கம்`,
+                overallProgressSummaryText: `ஜூலை 22, 2025 நிலவரப்படி, கிராமப்புறங்களில் உள்கட்டமைப்பு சவால்களை எதிர்கொள்வதில் குறிப்பிடத்தக்க முன்னேற்றங்கள் ஏற்பட்டுள்ளன. மொத்தம் <span class="font-bold" id="reportResolvedCount">0</span> சிக்கல்கள் வெற்றிகரமாக தீர்க்கப்பட்டுள்ளன, இது பயனுள்ள தலையீட்டைக் காட்டுகிறது. மேம்பாட்டிற்கான முதன்மை கவனம் செலுத்தப்படும் பகுதிகள் <span class="font-bold" id="reportTopIssue">சாலைகள் மற்றும் நீர் வழங்கல்</span> ஆகும்.`,
+                keyAchievementsTitle: `முக்கிய சாதனைகள்`,
+                achievement1: `கடந்த காலாண்டில் 5 கி.மீ. புதிய கிராமப்புற சாலைகள் அமைக்கும் பணி நிறைவு.`,
+                achievement2: `7 கிராமங்களுக்கு சுத்தமான குடிநீர் வசதியை வழங்கும் 10 புதிய கை பம்புகள் நிறுவப்பட்டுள்ளன.`,
+                achievement3: `3 கிராமங்களில் மின்சார உள்கட்டமைப்பு மேம்படுத்தப்பட்டு, மின்வெட்டு குறைக்கப்பட்டுள்ளது.`,
+                upcomingInitiativesTitle: `வரவிருக்கும் முன்முயற்சிகள்`,
+                initiative1: `5 உயர் முன்னுரிமை கிராமங்களில் திட்டமிடப்பட்ட சுகாதார இயக்கம்.`,
+                initiative2: `ராம்பூரில் 2025 ஆம் ஆண்டின் நான்காவது காலாண்டில் புதிய பள்ளி கட்டிடம் கட்டும் பணி தொடங்கும்.`,
+                updateReportButton: `அறிக்கையைப் புதுப்பிக்கவும்`,
+                feedbackHistoryTitle: `உங்கள் கருத்து வரலாறு`,
+                feedbackHistoryIntro: `நீங்கள் முன்பு புகாரளித்த சிக்கல்கள் மற்றும் அவற்றின் தற்போதைய நிலையைப் பார்க்கவும்.`,
+                noHistoryMessage: `இதுவரை எந்த சிக்கலும் புகாரளிக்கப்படவில்லை.`,
+                aiInsightsTitle: `AI நுண்ணறிவு (அரசு/NGO பயனர்கள்)`,
+                aiLoginIntro: `இந்த பகுதி அங்கீகரிக்கப்பட்ட அரசு மற்றும் NGO பயனர்களுக்கு தரவு அடிப்படையிலான நுண்ணறிவுகளை வழங்குகிறது. தொடர உள்நுழையவும்.`,
+                passwordLabel: `கடவுச்சொல்:`,
+                passwordPlaceholder: `கடவுச்சொல்லை உள்ளிடவும்`,
+                loginButton: `உள்நுழையவும்`,
+                infraAnalysisTitle: `உள்கட்டமைப்பு தேவை பகுப்பாய்வு`,
+                aiIntroText: `முக்கிய உள்கட்டமைப்பு இடைவெளிகளைக் கண்டறிந்து தலையீடுகளுக்கு முன்னுரிமை அளிக்க AI ஐப் பயன்படுத்துதல். சமீபத்திய பகுப்பாய்வைக் காண "நுண்ணறிவுகளை உருவாக்கு" என்பதைக் கிளிக் செய்யவும்.`,
+                generateInsightsButton: `நுண்ணறிவுகளை உருவாக்கு`,
+                topReportedIssuesTitle: `அதிகமாக புகாரளிக்கப்பட்ட சிக்கல்கள்:`,
+                urgentVillagesTitle: `அவசர கவனம் தேவைப்படும் கிராமங்கள்:`,
+                resourceSuggestionsTitle: `வள ஒதுக்கீடு பரிந்துரைகள்:`,
+                clickToLoad: `தரவை ஏற்ற "நுண்ணறிவுகளை உருவாக்கு" என்பதைக் கிளிக் செய்யவும்.`,
+                logoutButton: `வெளியேறு`,
+                selectLanguageTitle: `உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்`,
+                selectLanguageIntro: `பயன்பாட்டு இடைமுகத்திற்கான உங்கள் விருப்பமான மொழியைத் தேர்ந்தெடுக்கவும்:`,
+                languageNote: `குறிப்பு: இங்கே மொழியை மாற்றுவது, மொழிபெயர்ப்புகள் கிடைக்கும் இடங்களில் இடைமுக உரையைப் புதுப்பிக்கும். தரவு உள்ளடக்கம் அதன் அசல் உள்ளீட்டு மொழியிலேயே இருக்கும்.`,
+                modalLocationSelected: `இருப்பிடம் தேர்ந்தெடுக்கப்பட்டது: அட்சரேகை {lat}, தீர்க்கரேகை {lon}`,
+                modalLocationNeeded: `சிக்கல் உள்ள இடத்தில் ஒரு மார்க்கரை வைக்க வரைபடத்தில் கிளிக் செய்யவும்.`,
+                modalReportSuccess: `உங்கள் சிக்கல் வெற்றிகரமாக புகாரளிக்கப்பட்டது! உங்கள் கருத்துக்களுக்கு நன்றி.`,
+                modalIssueDeleted: `சிக்கல் வெற்றிகரமாக நீக்கப்பட்டது!`,
+                modalNoInsights: `நுண்ணறிவுகளை உருவாக்க இதுவரை எந்த சிக்கலும் புகாரளிக்கப்படவில்லை. முதலில் சில சிக்கல்களைப் புகாரளிக்கவும்.`,
+                modalInsightsGenerated: `AI மூலம் நுண்ணறிவுகள் வெற்றிகரமாக உருவாக்கப்பட்டன!`,
+                modalInsightsFailed: `AI இலிருந்து நுண்ணறிவுகளைப் பெறத் தவறிவிட்டது. மீண்டும் முயற்சிக்கவும்.`,
+                modalApiError: `AI உடன் இணைக்கும்போது ஒரு பிழை ஏற்பட்டது. உங்கள் இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.`,
+                modalLoginSuccess: `உள்நுழைவு வெற்றிகரமாக முடிந்தது! அரசு/NGO பயனரே, வரவேற்கிறோம்.`,
+                modalLoginFailed: `தவறான கடவுச்சொல். மீண்டும் முயற்சிக்கவும்.`,
+                modalLogoutSuccess: `வெற்றிகரமாக வெளியேற்றப்பட்டது.`,
+                modalVoiceNotSupported: `உங்கள் உலாவி குரல் உள்ளீட்டை ஆதரிக்கவில்லை. விளக்கத்தை தட்டச்சு செய்ய விசைப்பலகையைப் பயன்படுத்தவும்.`,
+                modalVoiceError: `குரல் உள்ளீட்டு பிழை: {error}. மீண்டும் முயற்சிக்கவும்.`,
+                modalVoiceStartError: `குரல் உள்ளீட்டைத் தொடங்க முடியவில்லை. மைக்ரோஃபோன் அணுகல் வழங்கப்பட்டுள்ளதா என்பதை உறுதிப்படுத்தவும்.`,
+                modalVoiceReceived: `குரல் உள்ளீடு பெறப்பட்டது!`,
+                modalReportUpdated: `முன்னேற்ற அறிக்கை புதுப்பிக்கப்பட்டது!`,
+                speakListening: `கேட்டுக் கொண்டிருக்கிறது...`,
+                speakSpeak: `பேசவும்`,
+                noIssuesReportedYet: `இதுவரை எந்த சிக்கலும் புகாரளிக்கப்படவில்லை.`,
+                noDataYet: `இதுவரை தரவு இல்லை.`,
+                noDataYetReportIssues: `இதுவரை தரவு இல்லை. நுண்ணறிவுகளை உருவாக்க சில சிக்கல்களைப் புகாரளிக்கவும்.`,
+                generatingInsights: `நுண்ணறிவுகளை உருவாக்குகிறது...`,
+                noSpecificIssueTrends: `AI ஆல் குறிப்பிட்ட சிக்கல் போக்குகள் எதுவும் கண்டறியப்படவில்லை.`,
+                noUrgentVillages: `AI ஆல் அவசர கவனம் தேவைப்படும் குறிப்பிட்ட கிராமங்கள் எதுவும் அடையாளம் காணப்படவில்லை.`,
+                noResourceSuggestions: `AI குறிப்பிட்ட வள ஒதுக்கீடு பரிந்துரைகளை உருவாக்க முடியவில்லை.`,
+                generalInfraIssues: `பொது உள்கட்டமைப்பு சிக்கல்கள்`,
+                languageSetConfirmation: `மொழி {lang} ஆக அமைக்கப்பட்டது.`,
+                reported: `புகாரளிக்கப்பட்டது`,
+                status: `நிலை`,
+                deleteButton: `நீக்கு`,
+                statusPending: `நிலுவையில் உள்ளது`,
+                statusResolved: `தீர்க்கப்பட்டது`,
+                speakNowPlaceholder: `இப்போது பேசவும்...`
+            },
+            te: {
+                appTitle: `గ్రామ మౌలిక సదుపాయాల కేంద్రం`,
+                welcomeTitle: `గ్రామ మౌలిక సదుపాయాల కేంద్రానికి స్వాగతం`,
+                welcomeSubtitle: `మెరుగైన మౌలిక సదుపాయాల ద్వారా సమాజాలను బలోపేతం చేయడం.`,
+                appName: `గ్రామ్ ఇన్‌ఫ్రా.AI`,
+                navLanguage: `భాష`,
+                navHome: `హోమ్`,
+                navReportIssue: `సమస్యను నివేదించండి`,
+                navProgressReport: `ప్రగతి నివేదిక`,
+                navFeedbackHistory: `అభిప్రాయ చరిత్ర`,
+                navAIInsights: `AI అంతర్దృష్టులు (ప్రభుత్వం/NGO)`,
+                dashboardTitle: `హోమ్ డాష్‌బోర్డ్`,
+                totalIssuesTitle: `నివేదించబడిన మొత్తం సమస్యలు`,
+                totalIssuesSubtitle: `అన్ని గ్రామాలలో`,
+                issuesResolvedTitle: `పరిష్కరించబడిన సమస్యలు`,
+                issuesResolvedSubtitle: `విజయవంతమైన జోక్యాలు`,
+                topNeedsTitle: `ప్రధాన మౌలిక సదుపాయాల అవసరాలు`,
+                needRoads: `రోడ్లు & కనెక్టివిటీ`,
+                needWater: `నీటి సరఫరా`,
+                needElectricity: `విద్యుత్`,
+                needSanitation: `పారిశుధ్యం`,
+                aboutInfraTitle: `గ్రామాలలో పేలవమైన మౌలిక సదుపాయాల గురించి`,
+                aboutInfraText: `గ్రామాలలో పేలవమైన మౌలిక సదుపాయాలు సామాజిక-ఆర్థిక అభివృద్ధిని గణనీయంగా అడ్డుకుంటాయి, మిలియన్ల మంది ప్రజల జీవన నాణ్యతను ప్రభావితం చేస్తాయి. రహదారులు లేకపోవడం, తగినంత నీటి సరఫరా లేకపోవడం, నమ్మదగని విద్యుత్ మరియు సరైన పారిశుధ్య సౌకర్యాలు లేకపోవడం వంటి సమస్యలు ప్రబలంగా ఉన్నాయి. ఈ ప్లాట్‌ఫారమ్ సమస్యలను నివేదించడానికి, పురోగతిని ట్రాక్ చేయడానికి మరియు సమాచార నిర్ణయాలు తీసుకోవడానికి ఒక క్రమబద్ధమైన మార్గాన్ని అందించడం ద్వారా పౌరులు మరియు అధికారుల మధ్య అంతరాన్ని తగ్గించడానికి ప్రయత్నిస్తుంది. గ్రామస్తులకు వారి ఆందోళనలను వ్యక్తం చేయడానికి అధికారం ఇవ్వడం ద్వారా, మనం సమిష్టిగా మరింత స్థితిస్థాపక మరియు సంపన్న గ్రామీణ సమాజాలను నిర్మించడానికి కృషి చేయవచ్చు.`,
+                reportIssueTitle: `కొత్త సమస్యను నివేదించండి`,
+                issueTypeLabel: `సమస్య రకం:`,
+                selectIssuePlaceholder: `సమస్య రకాన్ని ఎంచుకోండి`,
+                issueTypeRoads: `రోడ్లు & కనెక్టివిటీ`,
+                issueTypeWater: `నీటి సరఫరా`,
+                issueTypeElectricity: `విద్యుత్`,
+                issueTypeSanitation: `పారిశుధ్యం & డ్రైనేజీ`,
+                issueTypeEducation: `విద్యా సౌకర్యాలు`,
+                issueTypeHealthcare: `ఆరోగ్య సంరక్షణ సౌకర్యాలు`,
+                issueTypeOther: `ఇతర`,
+                villageNameLabel: `గ్రామం పేరు:`,
+                villageNamePlaceholder: `ఉదా., రాంపూర్`,
+                descriptionLabel: `వివరణ:`,
+                descriptionPlaceholder: `సమస్యను వివరంగా వివరించండి లేదా మాట్లాడటానికి మైక్రోఫోన్‌పై క్లిక్ చేయండి...`,
+                speakDescriptionTitle: `వివరణ మాట్లాడండి`,
+                speakButtonText: `మాట్లాడండి`,
+                mapLocationLabel: `మ్యాప్‌లో స్థానాన్ని గుర్తించండి:`,
+                mapLocationHint: `సమస్య ఉన్న ప్రదేశంలో మార్కర్‌ను ఉంచడానికి మ్యాప్‌పై క్లిక్ చేయండి.`,
+                contactEmailLabel: `మీ ఇమెయిల్ (ఐచ్ఛికం):`,
+                contactEmailPlaceholder: `మీ.ఇమెయిల్@ఉదాహరణ.కామ్`,
+                submitReportButton: `నివేదికను సమర్పించండి`,
+                progressReportTitle: `ప్రగతి నివేదిక`,
+                progressReportIntro: `ఈ విభాగం గ్రామాలలోని మౌలిక సదుపాయాల అభివృద్ధి పురోగతి యొక్క సారాంశాన్ని అందిస్తుంది. ఈ నివేదికను మానవీయంగా నవీకరించవచ్చు లేదా పరిష్కరించబడిన సమస్యలు మరియు ప్రాజెక్ట్ పూర్తి ఆధారంగా AI ద్వారా రూపొందించవచ్చు.`,
+                overallProgressSummaryTitle: `మొత్తం పురోగతి సారాంశం`,
+                overallProgressSummaryText: `జూలై 22, 2025 నాటికి, గ్రామీణ ప్రాంతాల్లో మౌలిక సదుపాయాల సవాళ్లను పరిష్కరించడంలో గణనీయమైన పురోగతి సాధించబడింది. మొత్తం <span class="font-bold" id="reportResolvedCount">0</span> సమస్యలు విజయవంతంగా పరిష్కరించబడ్డాయి, ఇది సమర్థవంతమైన జోక్యాన్ని ప్రదర్శిస్తుంది. మెరుగుదల కోసం ప్రాథమిక దృష్టి ప్రాంతాలు <span class="font-bold" id="reportTopIssue">రోడ్లు మరియు నీటి సరఫరా</span>గా కొనసాగుతున్నాయి।`,
+                keyAchievementsTitle: `కీలక విజయాలు`,
+                achievement1: `గత త్రైమాసికంలో 5 కి.మీ. కొత్త గ్రామీణ రహదారుల నిర్మాణం పూర్తయింది.`,
+                achievement2: `7 గ్రామాలకు శుభ్రమైన నీటిని అందించే 10 కొత్త చేతి పంపులు ఏర్పాటు చేయబడ్డాయి.`,
+                achievement3: `3 గ్రామాలలో విద్యుత్ మౌలిక సదుపాయాలను నవీకరించడం ద్వారా విద్యుత్ అంతరాయాలు తగ్గాయి.`,
+                upcomingInitiativesTitle: `రాబోయే కార్యక్రమాలు`,
+                initiative1: `5 అధిక ప్రాధాన్యత కలిగిన గ్రామాలలో ప్రణాళికాబద్ధమైన పారిశుధ్య డ్రైవ్.`,
+                initiative2: `రాంపూర్‌లో Q4 2025 నాటికి కొత్త పాఠశాల భవన నిర్మాణం ప్రారంభమవుతుంది।`,
+                updateReportButton: `నివేదికను నవీకరించండి`,
+                feedbackHistoryTitle: `మీ అభిప్రాయ చరిత్ర`,
+                feedbackHistoryIntro: `మీరు గతంలో నివేదించిన సమస్యలు మరియు వాటి ప్రస్తుత స్థితిని వీక్షించండి.`,
+                noHistoryMessage: `ఇప్పటివరకు ఎటువంటి సమస్యలు నివేదించబడలేదు।`,
+                aiInsightsTitle: `AI అంతర్దృష్టులు (ప్రభుత్వం/NGO వినియోగదారులు)`,
+                aiLoginIntro: `ఈ విభాగం అధీకృత ప్రభుత్వ మరియు NGO వినియోగదారుల కోసం డేటా-ఆధారిత అంతర్దృష్టులను అందిస్తుంది. కొనసాగడానికి దయచేసి లాగిన్ చేయండి।`,
+                passwordLabel: `పాస్‌వర్డ్:`,
+                passwordPlaceholder: `పాస్‌వర్డ్‌ను నమోదు చేయండి`,
+                loginButton: `లాగిన్ చేయండి`,
+                infraAnalysisTitle: `మౌలిక సదుపాయాల అవసరాల విశ్లేషణ`,
+                aiIntroText: `ముఖ్యమైన మౌలిక సదుపాయాల అంతరాలను గుర్తించడానికి మరియు జోక్యాలకు ప్రాధాన్యత ఇవ్వడానికి AIని ఉపయోగించడం. తాజా విశ్లేషణను చూడటానికి "అంతర్దృష్టులను రూపొందించండి" పై క్లిక్ చేయండి।`,
+                generateInsightsButton: `అంతర్దృష్టులను రూపొందించండి`,
+                topReportedIssuesTitle: `అత్యధికంగా నివేదించబడిన సమస్యలు:`,
+                urgentVillagesTitle: `తక్షణ శ్రద్ధ అవసరమైన గ్రామాలు:`,
+                resourceSuggestionsTitle: `వనరుల కేటాయింపు సూచనలు:`,
+                clickToLoad: `డేటాను లోడ్ చేయడానికి "అంతర్దృష్టులను రూపొందించండి" పై క్లిక్ చేయండి।`,
+                logoutButton: `లాగ్ అవుట్ చేయండి`,
+                selectLanguageTitle: `మీ భాషను ఎంచుకోండి`,
+                selectLanguageIntro: `అప్లికేషన్ ఇంటర్‌ఫేస్ కోసం మీకు నచ్చిన భాషను ఎంచుకోండి:`,
+                languageNote: `గమనిక: ఇక్కడ భాషను మార్చడం వలన అనువాదాలు అందుబాటులో ఉన్న చోట ఇంటర్‌ఫేస్ వచనం నవీకరించబడుతుంది. డేటా కంటెంట్ దాని అసలు ఇన్‌పుట్ భాషలోనే ఉంటుంది।`,
+                modalLocationSelected: `స్థానం ఎంపిక చేయబడింది: అక్షాంశం {lat}, రేఖాంశం {lon}`,
+                modalLocationNeeded: `సమస్య స్థానాన్ని ఎంచుకోవడానికి దయచేసి మ్యాప్‌పై క్లిక్ చేయండి।`,
+                modalReportSuccess: `మీ సమస్య విజయవంతంగా నివేదించబడింది! మీ అభిప్రాయానికి ధన్యవాదాలు।`,
+                modalIssueDeleted: `సమస్య విజయవంతంగా తొలగించబడింది!`,
+                modalNoInsights: `అంతర్దృష్టులను రూపొందించడానికి ఇప్పటివరకు ఎటువంటి సమస్యలు నివేదించబడలేదు. దయచేసి ముందుగా కొన్ని సమస్యలను నివేదించండి।`,
+                modalInsightsGenerated: `AI ద్వారా అంతర్దృష్టులు విజయవంతంగా రూపొందించబడ్డాయి!`,
+                modalInsightsFailed: `AI నుండి అంతర్దృష్టులను పొందడంలో విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి।`,
+                modalApiError: `AIకి కనెక్ట్ చేస్తున్నప్పుడు లోపం సంభవించింది. దయచేసి మీ ఇంటర్నెట్ కనెక్షన్‌ని తనిఖీ చేసి మళ్ళీ ప్రయత్నించండి।`,
+                modalLoginSuccess: `లాగిన్ విజయవంతమైంది! స్వాగతం, ప్రభుత్వం/NGO వినియోగదారు।`,
+                modalLoginFailed: `తప్పు పాస్‌వర్డ్. దయచేసి మళ్ళీ ప్రయత్నించండి।`,
+                modalLogoutSuccess: `విజయవంతంగా లాగ్ అవుట్ చేయబడింది।`,
+                modalVoiceNotSupported: `మీ బ్రౌజర్ వాయిస్ ఇన్‌పుట్‌కు మద్దతు ఇవ్వదు. దయచేసి వివరణను టైప్ చేయడానికి కీబోర్డ్‌ను ఉపయోగించండి।`,
+                modalVoiceError: `వాయిస్ ఇన్‌పుట్ లోపం: {error}. దయచేసి మళ్ళీ ప్రయత్నించండి।`,
+                modalVoiceStartError: `వాయిస్ ఇన్‌పుట్‌ను ప్రారంభించలేకపోయింది. మైక్రోఫోన్ యాక్సెస్ మంజూరు చేయబడిందని నిర్ధారించుకోండి।`,
+                modalVoiceReceived: `వాయిస్ ఇన్‌పుట్ స్వీకరించబడింది!`,
+                modalReportUpdated: `ప్రగతి నివేదిక నవీకరించబడింది!`,
+                speakListening: `వింటుంది...`,
+                speakSpeak: `మాట్లాడండి`,
+                noIssuesReportedYet: `ఇప్పటివరకు ఎటువంటి సమస్యలు నివేదించబడలేదు।`,
+                noDataYet: `ఇప్పటివరకు డేటా లేదు।`,
+                noDataYetReportIssues: `ఇప్పటివరకు డేటా లేదు। అంతర్దృష్టులను రూపొందించడానికి కొన్ని సమస్యలను నివేదించండి।`,
+                generatingInsights: `అంతర్దృష్టులను రూపొందిస్తోంది...`,
+                noSpecificIssueTrends: `AI ద్వారా నిర్దిష్ట సమస్య పోకడలు కనుగొనబడలేదు।`,
+                noUrgentVillages: `AI ద్వారా తక్షణ శ్రద్ధ అవసరమైన నిర్దిష్ట గ్రామాలు గుర్తించబడలేదు।`,
+                noResourceSuggestions: `AI నిర్దిష్ట వనరుల కేటాయింపు సూచనలను రూపొందించలేకపోయింది।`,
+                generalInfraIssues: `సాధారణ మౌలిక సదుపాయాల సమస్యలు`,
+                languageSetConfirmation: `భాష {lang}కి సెట్ చేయబడింది।`,
+                reported: `నివేదించబడింది`,
+                status: `స్థితి`,
+                deleteButton: `తొలగించు`,
+                statusPending: `పెండింగ్‌లో ఉంది`,
+                statusResolved: `పరిష్కరించబడింది`,
+                speakNowPlaceholder: `ఇప్పుడు మాట్లాడండి...`
+            },
+            mr: {
+                appTitle: `ग्राम पायाभूत सुविधा केंद्र`,
+                welcomeTitle: `ग्राम पायाभूत सुविधा केंद्रात आपले स्वागत आहे`,
+                welcomeSubtitle: `उत्तम पायाभूत सुविधांद्वारे समुदायांना सक्षम बनवणे.`,
+                appName: `ग्राम इन्फ्रा.AI`,
+                navLanguage: `भाषा`,
+                navHome: `मुख्यपृष्ठ`,
+                navReportIssue: `समस्या नोंदवा`,
+                navProgressReport: `प्रगती अहवाल`,
+                navFeedbackHistory: `अभिप्राय इतिहास`,
+                navAIInsights: `एआय अंतर्दृष्टी (सरकार/एनजीओ)`,
+                dashboardTitle: `मुख्यपृष्ठ डॅशबोर्ड`,
+                totalIssuesTitle: `एकूण नोंदवलेल्या समस्या`,
+                totalIssuesSubtitle: `सर्व गावांमध्ये`,
+                issuesResolvedTitle: `सोडवलेल्या समस्या`,
+                issuesResolvedSubtitle: `यशस्वी हस्तक्षेप`,
+                topNeedsTitle: `शीर्ष पायाभूत सुविधा गरजा`,
+                needRoads: `रस्ते आणि कनेक्टिव्हिटी`,
+                needWater: `पाणी पुरवठा`,
+                needElectricity: `वीज`,
+                needSanitation: `स्वच्छता`,
+                aboutInfraTitle: `गावांमधील खराब पायाभूत सुविधांबद्दल`,
+                aboutInfraText: `गावांमधील खराब पायाभूत सुविधांमुळे सामाजिक-आर्थिक विकासात लक्षणीय अडथळे येतात, ज्यामुळे लाखो लोकांच्या जीवनाच्या गुणवत्तेवर परिणाम होतो. कच्चे रस्ते, अपुरा पाणीपुरवठा, अविश्वसनीय वीज आणि योग्य स्वच्छता सुविधांचा अभाव यासारख्या समस्या मोठ्या प्रमाणात आहेत. हे व्यासपीठ नागरिकांना आणि अधिकाऱ्यांमध्ये दुवा साधण्याचे उद्दिष्ट ठेवते, ज्यामुळे समस्या नोंदवण्यासाठी, प्रगतीचा मागोवा घेण्यासाठी आणि माहितीपूर्ण निर्णय घेण्यासाठी डेटा गोळा करण्यासाठी एक सुव्यवस्थित मार्ग उपलब्ध होतो. गावकऱ्यांच्या चिंता व्यक्त करण्यासाठी त्यांना सक्षम करून, आपण एकत्रितपणे अधिक लवचिक आणि समृद्ध ग्रामीण समुदाय निर्माण करण्यासाठी कार्य करू शकतो.`,
+                reportIssueTitle: `नवीन समस्या नोंदवा`,
+                issueTypeLabel: `समस्येचा प्रकार:`,
+                selectIssuePlaceholder: `समस्येचा प्रकार निवडा`,
+                issueTypeRoads: `रस्ते आणि कनेक्टिव्हिटी`,
+                issueTypeWater: `पाणी पुरवठा`,
+                issueTypeElectricity: `वीज`,
+                issueTypeSanitation: `स्वच्छता आणि ड्रेनेज`,
+                issueTypeEducation: `शिक्षण सुविधा`,
+                issueTypeHealthcare: `आरोग्य सुविधा`,
+                issueTypeOther: `इतर`,
+                villageNameLabel: `गावाचे नाव:`,
+                villageNamePlaceholder: `उदा., रामपूर`,
+                descriptionLabel: `वर्णन:`,
+                descriptionPlaceholder: `समस्येचे तपशीलवार वर्णन करा किंवा बोलण्यासाठी मायक्रोफोनवर क्लिक करा...`,
+                speakDescriptionTitle: `वर्णन बोला`,
+                speakButtonText: `बोला`,
+                mapLocationLabel: `नकाशावर स्थान चिन्हांकित करा:`,
+                mapLocationHint: `समस्येच्या ठिकाणी मार्कर ठेवण्यासाठी नकाशावर क्लिक करा.`,
+                contactEmailLabel: `तुमचा ईमेल (ऐच्छिक):`,
+                contactEmailPlaceholder: `तुमचा.ईमेल@उदाहरण.कॉम`,
+                submitReportButton: `अहवाल सादर करा`,
+                progressReportTitle: `प्रगती अहवाल`,
+                progressReportIntro: `हा विभाग गावांमध्ये पायाभूत सुविधांच्या विकासाच्या प्रगतीचा सारांश प्रदान करतो. हा अहवाल स्वहस्ते अद्यतनित केला जाऊ शकतो किंवा सोडवलेल्या समस्या आणि प्रकल्प पूर्णत्वावर आधारित AI द्वारे तयार केला जाऊ शकतो.`,
+                overallProgressSummaryTitle: `एकूण प्रगती सारांश`,
+                overallProgressSummaryText: `जुलै 22, 2025 पर्यंत, ग्रामीण भागातील पायाभूत सुविधांच्या आव्हानांना तोंड देण्यासाठी महत्त्वपूर्ण प्रगती झाली आहे. एकूण <span class="font-bold" id="reportResolvedCount">0</span> समस्या यशस्वीरित्या सोडवण्यात आल्या आहेत, ज्यामुळे प्रभावी हस्तक्षेप दिसून येतो. सुधारणेसाठी प्राथमिक लक्ष केंद्रित क्षेत्रे <span class="font-bold" id="reportTopIssue">रस्ते आणि पाणी पुरवठा</span> आहेत।`,
+                keyAchievementsTitle: `मुख्य उपलब्धी`,
+                achievement1: `गेल्या तिमाहीत 5 किमी नवीन ग्रामीण रस्त्यांचे बांधकाम पूर्ण झाले.`,
+                achievement2: `7 गावांना स्वच्छ पाणी उपलब्ध करून देणारे 10 नवीन हँडपंप बसवण्यात आले.`,
+                achievement3: `3 गावांमध्ये वीज पायाभूत सुविधांचे उन्नतीकरण करण्यात आले, ज्यामुळे वीज खंडित होण्याचे प्रमाण कमी झाले।`,
+                upcomingInitiativesTitle: `आगामी उपक्रम`,
+                initiative1: `5 उच्च प्राधान्य असलेल्या गावांमध्ये नियोजित स्वच्छता मोहीम.`,
+                initiative2: `रामपूरमध्ये Q4 2025 पर्यंत नवीन शाळेचे बांधकाम सुरू होईल।`,
+                updateReportButton: `अहवाल अद्यतनित करा`,
+                feedbackHistoryTitle: `तुमचा अभिप्राय इतिहास`,
+                feedbackHistoryIntro: `आपण यापूर्वी नोंदवलेल्या समस्या आणि त्यांची सद्यस्थिती पहा.`,
+                noHistoryMessage: `अद्याप कोणतीही समस्या नोंदवली नाही।`,
+                aiInsightsTitle: `एआय अंतर्दृष्टी (सरकार/एनजीओ वापरकर्ते)`,
+                aiLoginIntro: `हा विभाग अधिकृत सरकारी आणि एनजीओ वापरकर्त्यांसाठी डेटा-आधारित अंतर्दृष्टी प्रदान करतो. पुढे जाण्यासाठी कृपया लॉग इन करा।`,
+                passwordLabel: `पासवर्ड:`,
+                passwordPlaceholder: `पासवर्ड प्रविष्ट करा`,
+                loginButton: `लॉग इन करा`,
+                infraAnalysisTitle: `पायाभूत सुविधा गरजा विश्लेषण`,
+                aiIntroText: `महत्त्वाच्या पायाभूत सुविधांमधील अंतर ओळखण्यासाठी आणि हस्तक्षेपांना प्राधान्य देण्यासाठी AI चा वापर करणे. नवीनतम विश्लेषण पाहण्यासाठी "अंतर्दृष्टी तयार करा" वर क्लिक करा।`,
+                generateInsightsButton: `अंतर्दृष्टी तयार करा`,
+                topReportedIssuesTitle: `शीर्ष नोंदवलेल्या समस्या:`,
+                urgentVillagesTitle: `तत्काळ लक्ष देण्याची गरज असलेली गावे:`,
+                resourceSuggestionsTitle: `संसाधन वाटप सूचना:`,
+                clickToLoad: `डेटा लोड करण्यासाठी "अंतर्दृष्टी तयार करा" वर क्लिक करा।`,
+                logoutButton: `लॉग आउट करा`,
+                selectLanguageTitle: `तुमची भाषा निवडा`,
+                selectLanguageIntro: `अनुप्रयोग इंटरफेससाठी तुमची पसंतीची भाषा निवडा:`,
+                languageNote: `टीप: येथे भाषा बदलल्यास इंटरफेस मजकूर अद्यतनित होईल जिथे अनुवाद उपलब्ध आहेत. डेटा सामग्री तिच्या मूळ इनपुट भाषेतच राहील।`,
+                modalLocationSelected: `स्थान निवडले: अक्षांश {lat}, रेखांश {lon}`,
+                modalLocationNeeded: `कृपया समस्येचे स्थान निवडण्यासाठी नकाशावर क्लिक करा।`,
+                modalReportSuccess: `आपली समस्या यशस्वीरित्या नोंदवली गेली आहे! आपल्या अभिप्रायाबद्दल धन्यवाद।`,
+                modalIssueDeleted: `समस्या यशस्वीरित्या हटविली!`,
+                modalNoInsights: `अंतर्दृष्टी तयार करण्यासाठी अद्याप कोणतीही समस्या नोंदवली नाही. कृपया प्रथम काही समस्या नोंदवा।`,
+                modalInsightsGenerated: `एआय द्वारे अंतर्दृष्टी यशस्वीरित्या तयार केली गेली!`,
+                modalInsightsFailed: `एआय कडून अंतर्दृष्टी मिळवण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा।`,
+                modalApiError: `एआयला कनेक्ट करताना एक त्रुटी आली. कृपया आपले इंटरनेट कनेक्शन तपासा आणि पुन्हा प्रयत्न करा।`,
+                modalLoginSuccess: `लॉगिन यशस्वी! स्वागत आहे, सरकार/एनजीओ वापरकर्ता।`,
+                modalLoginFailed: `चुकीचा पासवर्ड. कृपया पुन्हा प्रयत्न करा।`,
+                modalLogoutSuccess: `यशस्वीरित्या लॉग आउट केले।`,
+                modalVoiceNotSupported: `आपल्या ब्राउझरद्वारे व्हॉइस इनपुट समर्थित नाही. कृपया वर्णन टाइप करण्यासाठी कीबोर्ड वापरा।`,
+                modalVoiceError: `व्हॉइस इनपुट त्रुटी: {error}. कृपया पुन्हा प्रयत्न करा।`,
+                modalVoiceStartError: `व्हॉइस इनपुट सुरू करू शकलो नाही. कृपया मायक्रोफोन प्रवेश मंजूर असल्याची खात्री करा।`,
+                modalVoiceReceived: `व्हॉइस इनपुट प्राप्त झाले!`,
+                modalReportUpdated: `प्रगती अहवाल अद्यतनित केला!`,
+                speakListening: `ऐकत आहे...`,
+                speakSpeak: `बोला`,
+                noIssuesReportedYet: `अद्याप कोणतीही समस्या नोंदवली नाही।`,
+                noDataYet: `अद्याप कोणताही डेटा नाही।`,
+                noDataYetReportIssues: `अद्याप कोणताही डेटा नाही। अंतर्दृष्टी तयार करण्यासाठी काही समस्या नोंदवा।`,
+                generatingInsights: `अंतर्दृष्टी तयार करत आहे...`,
+                noSpecificIssueTrends: `एआय द्वारे कोणतीही विशिष्ट समस्या प्रवृत्ती आढळली नाही।`,
+                noUrgentVillages: `एआय द्वारे त्वरित लक्ष देण्याची गरज असलेली कोणतीही विशिष्ट गावे ओळखली नाहीत।`,
+                noResourceSuggestions: `एआय विशिष्ट संसाधन वाटप सूचना तयार करू शकला नाही।`,
+                generalInfraIssues: `सामान्य पायाभूत सुविधा समस्या`,
+                languageSetConfirmation: `भाषा {lang} वर सेट केली आहे।`,
+                reported: `नोंदवले`,
+                status: `स्थिती`,
+                deleteButton: `हटवा`,
+                statusPending: `प्रलंबित`,
+                statusResolved: `सोडवले`,
+                speakNowPlaceholder: `आता बोला...`
+            }
+        };
+
+        // --- Utility Functions ---
+
+        // Function to apply translations
+        function applyTranslations() {
+            // Defensive check: Ensure translations for the current language exist
+            if (!translations[currentLanguage]) {
+                console.error(`Translations for language '${currentLanguage}' are missing or invalid. Falling back to 'en'.`);
+                currentLanguage = 'en'; // Default to 'en' if the current language translations are not found
+                // If even translations.en is missing, there's a fundamental problem with the translations object definition.
+                if (!translations || !translations[currentLanguage]) {
+                    console.error("Critical error: Default English translations are also missing. Cannot apply translations.");
+                    return; // Cannot proceed with translations
+                }
+            }
+
+            const elements = document.querySelectorAll('[data-i18n-key]');
+            elements.forEach(element => {
+                const key = element.getAttribute('data-i18n-key');
+                // Safely get the translation for the current language and key
+                const translation = translations[currentLanguage][key];
+                
+                // If translation for a specific key is missing, log a warning but don't crash
+                if (translation === undefined) {
+                    console.warn(`Missing translation for key "${key}" in language "${currentLanguage}". Element will not be translated.`);
+                    return; // Skip this element if translation is missing
+                }
+
+                if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+                    element.placeholder = translation;
+                } else if (element.tagName === 'OPTION' && element.closest('select#issueType')) {
+                    if (element.value === "" || key.startsWith('issueType')) {
+                        element.textContent = translation;
+                    }
+                }
+                else {
+                    if (key === 'overallProgressSummaryText') {
+                        const resolvedCount = reportResolvedCountSpan.textContent;
+                        const topIssue = reportTopIssueSpan.textContent;
+                        let translatedText = translation;
+                        translatedText = translatedText.replace('<span class="font-bold" id="reportResolvedCount">0</span>', `<span class="font-bold" id="reportResolvedCount">${resolvedCount}</span>`);
+                        translatedText = translatedText.replace('<span class="font-bold" id="reportTopIssue">roads and water supply</span>', `<span class="font-bold" id="reportTopIssue">${topIssue}</span>`);
+                        element.innerHTML = translatedText;
+                    } else {
+                        element.textContent = translation;
+                    }
+                }
+            });
+        }
+
+        // Function to show custom modal
+        function showModal(messageKey, params = {}) {
+            let message = translations[currentLanguage][messageKey] || messageKey; // Fallback to key if not found
+            for (const key in params) {
+                message = message.replace(`{${key}}`, params[key]);
+            }
+            modalMessage.textContent = message;
+            messageModal.style.display = 'flex'; // Use flex to center
+        }
+
+        // Function to close custom modal
+        function closeModal() {
+            messageModal.style.display = 'none';
+        }
+
+        // Close modal when clicking on the close button
+        if (closeModalButton) {
+            closeModalButton.onclick = closeModal;
+        }
+
+        // Close modal when clicking outside of the modal content
+        window.onclick = function(event) {
+            if (event.target == messageModal) {
+                closeModal();
+            }
+        }
+
+        // Function to update dashboard counts and top needs
+        function updateDashboardCounts() {
+            totalIssuesDisplay.textContent = reportedIssues.length;
+            const resolvedCount = reportedIssues.filter(issue => issue.status === 'Resolved').length;
+            resolvedIssuesDisplay.textContent = resolvedCount;
+
+            // Update Top Infrastructure Needs on Dashboard
+            const issueTypeCounts = {};
+            reportedIssues.forEach(issue => {
+                issueTypeCounts[issue.type] = (issueTypeCounts[issue.type] || 0) + 1;
+            });
+
+            const sortedIssueTypes = Object.entries(issueTypeCounts).sort(([, countA], [, countB]) => countB - countA);
+
+            topNeedsListDashboard.innerHTML = ''; // Clear existing list
+            if (sortedIssueTypes.length === 0) {
+                const noIssuesText = translations[currentLanguage]['noIssuesReportedYet'] || 'No issues reported yet.';
+                topNeedsListDashboard.innerHTML = `<li>${noIssuesText}</li>`;
+            } else {
+                sortedIssueTypes.slice(0, 5).forEach(([type, count]) => { // Show top 5
+                    const listItem = document.createElement('li');
+                    // Translate issue type if available, otherwise use original
+                    const translatedType = translations[currentLanguage][`issueType${type}`] || type;
+                    listItem.textContent = `${translatedType} (${count} reports)`;
+                    topNeedsListDashboard.appendChild(listItem);
+                });
+            }
+        }
+
+        // Function to save data to localStorage
+        function saveData() {
+            localStorage.setItem('reportedIssues', JSON.stringify(reportedIssues));
+            localStorage.setItem('currentLanguage', currentLanguage);
+        }
+
+        // Function to load data from localStorage
+        function loadData() {
+            const storedIssues = localStorage.getItem('reportedIssues');
+            if (storedIssues) {
+                reportedIssues = JSON.parse(storedIssues);
+            }
+            const storedLanguage = localStorage.getItem('currentLanguage');
+            // Ensure currentLanguage is a valid key in translations, default to 'en' if not
+            if (storedLanguage && translations[storedLanguage]) {
+                currentLanguage = storedLanguage;
+            } else {
+                currentLanguage = 'en'; // Default to English if no valid language is stored
+            }
+        }
+
+        // Function to display reported issues in history
+        function displayFeedbackHistory() {
+            historyList.innerHTML = ''; // Clear previous entries
+            if (reportedIssues.length === 0) {
+                noHistoryMessage.style.display = 'block';
+            } else {
+                noHistoryMessage.style.display = 'none';
+                reportedIssues.forEach((issue, index) => {
+                    const issueCard = document.createElement('div');
+                    issueCard.className = 'p-4 border border-gray-200 rounded-lg bg-gray-50';
+                    let locationInfo = '';
+                    if (issue.latitude && issue.longitude) {
+                        const lat = issue.latitude.toFixed(4);
+                        const lon = issue.longitude.toFixed(4);
+                        const locationText = translations[currentLanguage]['modalLocationSelected']
+                            .replace('{lat}', lat)
+                            .replace('{lon}', lon);
+                        locationInfo = `<p class="text-sm text-gray-500 mt-1">${locationText}</p>`;
+                    }
+                    // Translate issue type and status for history display
+                    const translatedIssueType = translations[currentLanguage][`issueType${issue.type}`] || issue.type;
+                    const translatedStatus = translations[currentLanguage][`status${issue.status}`] || issue.status; // Assuming status translations like statusPending, statusResolved
+                    issueCard.innerHTML = `
+                        <h4 class="font-semibold text-lg">${translatedIssueType} in ${issue.village}</h4>
+                        <p class="text-sm text-gray-600">${translations[currentLanguage]['reported'] || 'Reported'}: ${issue.date} | ${translations[currentLanguage]['status'] || 'Status'}: <span class="${issue.status === 'Resolved' ? 'text-green-600' : 'text-yellow-600'} font-medium">${translatedStatus}</span></p>
+                        <p class="text-sm text-gray-700 mt-1">${issue.description}</p>
+                        ${locationInfo}
+                        <button class="text-red-500 hover:text-red-700 text-sm mt-2" onclick="deleteIssue(${index})">${translations[currentLanguage]['deleteButton'] || 'Delete'}</button>
+                    `;
+                    historyList.appendChild(issueCard);
+                });
+            }
+        }
+
+        // Function to delete an issue
+        function deleteIssue(index) {
+            reportedIssues.splice(index, 1);
+            saveData();
+            displayFeedbackHistory();
+            updateDashboardCounts();
+            showModal('modalIssueDeleted');
+        }
+
+        // --- Leaflet (OpenStreetMap) Map Initialization ---
+        function initializeMap() {
+            // Check if map is already initialized to prevent re-initialization
+            if (mymap) {
+                mymap.remove(); // Remove existing map instance
+            }
+
+            // Default coordinates (e.g., center of India or a generic village area)
+            // Jaipur, Rajasthan, India coordinates: 26.9124, 75.7873
+            mymap = L.map('mapid').setView([26.9124, 75.7873], 10); // Set view to Jaipur, zoom level 10
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: `&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors`
+            }).addTo(mymap);
+
+            // Clear any previous marker
+            if (marker) {
+                mymap.removeLayer(marker);
+            }
+            selectedLatitude = '';
+            selectedLongitude = '';
+            latitudeInput.value = '';
+            longitudeInput.value = '';
+            coordinatesDisplay.textContent = '';
+
+            mymap.on('click', function(e) {
+                // Remove existing marker if any
+                if (marker) {
+                    mymap.removeLayer(marker);
+                }
+
+                // Add new marker
+                marker = L.marker(e.latlng).addTo(mymap);
+                selectedLatitude = e.latlng.lat;
+                selectedLongitude = e.latlng.lng;
+
+                // Update hidden input fields and display
+                latitudeInput.value = selectedLatitude;
+                longitudeInput.value = selectedLongitude;
+                coordinatesDisplay.textContent = `Selected: Lat ${selectedLatitude.toFixed(4)}, Lon ${selectedLongitude.toFixed(4)}`;
+
+                showModal('modalLocationSelected', { lat: selectedLatitude.toFixed(4), lon: selectedLongitude.toFixed(4) });
+            });
+        }
+
+        // --- Web Speech API (Voice Command) Logic ---
+        function setupVoiceRecognition() {
+            // Check if SpeechRecognition is supported by the browser
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                voiceInputBtn.style.display = 'none'; // Hide button if not supported
+                showModal('modalVoiceNotSupported');
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = false; // Stop after a single utterance
+            recognition.lang = 'en-IN'; // Set language to English (India)
+            recognition.interimResults = false; // Only return final results
+
+            recognition.onstart = () => {
+                isRecording = true;
+                voiceInputBtn.classList.add('recording');
+                voiceStatusSpan.textContent = translations[currentLanguage]['speakListening'] || 'Listening...';
+                issueDescriptionTextarea.placeholder = translations[currentLanguage]['speakNowPlaceholder'] || 'Speak now...';
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                issueDescriptionTextarea.value = transcript; // Set the transcribed text
+                showModal('modalVoiceReceived');
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                showModal('modalVoiceError', { error: event.error });
+                isRecording = false;
+                voiceInputBtn.classList.remove('recording');
+                voiceStatusSpan.textContent = translations[currentLanguage]['speakButtonText'] || 'Speak';
+                issueDescriptionTextarea.placeholder = translations[currentLanguage]['descriptionPlaceholder'] || 'Describe the issue in detail or click the microphone to speak...';
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                voiceInputBtn.classList.remove('recording');
+                voiceStatusSpan.textContent = translations[currentLanguage]['speakButtonText'] || 'Speak';
+                issueDescriptionTextarea.placeholder = translations[currentLanguage]['descriptionPlaceholder'] || 'Describe the issue in detail or click the microphone to speak...';
+            };
+
+            voiceInputBtn.addEventListener('click', () => {
+                if (isRecording) {
+                    recognition.stop();
+                } else {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error('Error starting speech recognition:', e);
+                        showModal('modalVoiceStartError');
+                    }
+                }
+            });
+        }
+
+        // --- AI Insights Logic ---
+        async function generateAIInsights() {
+            if (reportedIssues.length === 0) {
+                aiTopIssuesList.innerHTML = `<li>${translations[currentLanguage]['noIssuesReportedYet']}</li>`;
+                aiUrgentVillagesList.innerHTML = `<li>${translations[currentLanguage]['noDataYet']}</li>`;
+                aiResourceSuggestionsPara.textContent = translations[currentLanguage]['noDataYetReportIssues'];
+                showModal('modalNoInsights');
+                return;
+            }
+
+            aiLoadingSpinner.style.display = 'block'; // Show loading spinner
+            aiTopIssuesList.innerHTML = `<li>${translations[currentLanguage]['generatingInsights']}</li>`;
+            aiUrgentVillagesList.innerHTML = `<li>${translations[currentLanguage]['generatingInsights']}</li>`;
+            aiResourceSuggestionsPara.textContent = translations[currentLanguage]['generatingInsights'];
+
+            const prompt = `Analyze the following reported infrastructure issues from various villages and provide:
+            1. Top 3 most reported issues with their percentage out of total reports and count.
+            2. Top 3 villages requiring urgent attention (based on the highest number of reported issues).
+            3. Resource allocation suggestions based on the identified top issues.
+
+            Provide the output in a JSON format with the following structure:
+            {
+                "topIssues": [
+                    {"type": "Issue Type", "percentage": "XX.X%", "count": N},
+                    ...
+                ],
+                "urgentVillages": [
+                    {"village": "Village Name", "count": N},
+                    ...
+                ],
+                "resourceSuggestions": "Detailed suggestion text."
+            }
+
+            Here are the reported issues:
+            ${JSON.stringify(reportedIssues, null, 2)}`;
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = {
+                contents: chatHistory,
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "topIssues": {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "type": { "type": "STRING" },
+                                        "percentage": { "type": "STRING" },
+                                        "count": { "type": "NUMBER" }
+                                    }
+                                }
+                            },
+                            "urgentVillages": {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "village": { "type": "STRING" },
+                                        "count": { "type": "NUMBER" }
+                                    }
+                                }
+                            },
+                            "resourceSuggestions": { "type": "STRING" }
+                        },
+                        "propertyOrdering": ["topIssues", "urgentVillages", "resourceSuggestions"]
+                    }
+                }
+            };
+
+            const apiKey = ""; // Canvas will automatically provide the API key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const jsonResponseText = result.candidates[0].content.parts[0].text;
+                    const insights = JSON.parse(jsonResponseText);
+
+                    // Update UI with AI insights
+                    aiTopIssuesList.innerHTML = '';
+                    if (insights.topIssues && insights.topIssues.length > 0) {
+                        insights.topIssues.forEach(issue => {
+                            const listItem = document.createElement('li');
+                            // Translate issue type in AI insights if available
+                            const translatedType = translations[currentLanguage][`issueType${issue.type}`] || issue.type;
+                            listItem.textContent = `${translatedType}: ${issue.percentage} of reports (${issue.count} instances)`;
+                            aiTopIssuesList.appendChild(listItem);
+                        });
+                    } else {
+                        aiTopIssuesList.innerHTML = `<li>${translations[currentLanguage]['noSpecificIssueTrends']}</li>`;
+                    }
+
+                    aiUrgentVillagesList.innerHTML = '';
+                    if (insights.urgentVillages && insights.urgentVillages.length > 0) {
+                        insights.urgentVillages.forEach(village => {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = `${village.village} (${village.count} issues reported)`;
+                            aiUrgentVillagesList.appendChild(listItem);
+                        });
+                    } else {
+                        aiUrgentVillagesList.innerHTML = `<li>${translations[currentLanguage]['noUrgentVillages']}</li>`;
+                    }
+
+                    aiResourceSuggestionsPara.textContent = insights.resourceSuggestions || translations[currentLanguage]['noResourceSuggestions'];
+                    showModal('modalInsightsGenerated');
+
+                } else {
+                    showModal('modalInsightsFailed');
+                    aiTopIssuesList.innerHTML = `<li>${translations[currentLanguage]['errorGeneratingInsights']}</li>`;
+                    aiUrgentVillagesList.innerHTML = `<li>${translations[currentLanguage]['errorGeneratingInsights']}</li>`;
+                    aiResourceSuggestionsPara.textContent = translations[currentLanguage]['errorGeneratingInsights'];
+                }
+            } catch (error) {
+                console.error('Error calling Gemini API:', error);
+                showModal('modalApiError');
+                aiTopIssuesList.innerHTML = `<li>${translations[currentLanguage]['connectionError']}</li>`;
+                aiUrgentVillagesList.innerHTML = `<li>${translations[currentLanguage]['connectionError']}</li>`;
+                aiResourceSuggestionsPara.textContent = translations[currentLanguage]['connectionError'];
+            } finally {
+                aiLoadingSpinner.style.display = 'none'; // Hide loading spinner
+            }
+        }
+
+        // --- Progress Report Logic ---
+        function updateProgressReport() {
+            const resolvedCount = reportedIssues.filter(issue => issue.status === 'Resolved').length;
+            reportResolvedCountSpan.textContent = resolvedCount;
+
+            const issueTypeCounts = {};
+            reportedIssues.forEach(issue => {
+                issueTypeCounts[issue.type] = (issueTypeCounts[issue.type] || 0) + 1;
+            });
+            const sortedIssueTypes = Object.entries(issueTypeCounts).sort(([, countA], [, countB]) => countB - countA);
+
+            let topIssueText;
+            if (sortedIssueTypes.length > 0) {
+                const primaryIssue = translations[currentLanguage][`issueType${sortedIssueTypes[0][0]}`] || sortedIssueTypes[0][0].toLowerCase();
+                topIssueText = primaryIssue;
+                if (sortedIssueTypes.length > 1) {
+                    const secondaryIssue = translations[currentLanguage][`issueType${sortedIssueTypes[1][0]}`] || sortedIssueTypes[1][0].toLowerCase();
+                    topIssueText += ` and ${secondaryIssue}`;
+                }
+            } else {
+                topIssueText = translations[currentLanguage]['generalInfraIssues'] || 'general infrastructure issues';
+            }
+            reportTopIssueSpan.textContent = topIssueText;
+
+            const today = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            reportDateSpan.textContent = today.toLocaleDateString(currentLanguage === 'hi' ? 'hi-IN' : (currentLanguage === 'bn' ? 'bn-BD' : (currentLanguage === 'ta' ? 'ta-IN' : (currentLanguage === 'te' ? 'te-IN' : (currentLanguage === 'mr' ? 'mr-IN' : 'en-US')))), options); // Localize date format
+
+            showModal('modalReportUpdated');
+        }
+
+
+        // --- Event Handlers ---
+
+        // Language Selection
+        function selectLanguage(lang) {
+            currentLanguage = lang;
+            saveData();
+            applyTranslations(); // Apply new translations
+            welcomeSection.classList.remove('active');
+            welcomeSection.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            appContainer.classList.add('block');
+            showModal('languageSetConfirmation', { lang: lang.toUpperCase() }); // Provide feedback
+            showSection('homeDashboard'); // Go to dashboard after language selection
+        }
+
+        // Section Navigation
+        function showSection(sectionId) {
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.section === sectionId) {
+                    link.classList.add('active');
+                }
+            });
+
+            // Specific logic for map initialization when 'Report Issue' section is active
+            if (sectionId === 'reportIssue') {
+                // Ensure the map container is visible before initializing
+                setTimeout(() => {
+                    initializeMap(); // Call Leaflet map initialization
+                    if (mymap) {
+                        mymap.invalidateSize(); // Invalidate size for Leaflet map
+                    }
+                }, 100); // A small delay to ensure the div is rendered and visible
+            } else {
+                // If navigating away from the map section, clear the marker and coordinates
+                if (marker) {
+                    mymap.removeLayer(marker);
+                }
+                selectedLatitude = '';
+                selectedLongitude = '';
+                latitudeInput.value = '';
+                longitudeInput.value = '';
+                coordinatesDisplay.textContent = '';
+            }
+
+            // Specific logic for AI Insights section
+            if (sectionId === 'aiInsights') {
+                if (sessionStorage.getItem('aiLoggedIn') === 'true') {
+                    aiLoginCard.classList.add('hidden');
+                    aiContentCard.classList.remove('hidden');
+                    // Automatically generate insights when logged in and section is viewed
+                    generateAIInsights();
+                } else {
+                    aiLoginCard.classList.remove('hidden');
+                    aiContentCard.classList.add('hidden');
+                }
+            }
+            // Specific logic for Progress Report section
+            if (sectionId === 'progressReport') {
+                updateProgressReport(); // Update the report content when section is viewed
+            }
+        }
+
+        // Removed direct onclick attributes from HTML buttons and added event listeners here
+        // This ensures the JS is fully loaded before event handlers are attached.
+        // navLinks.forEach(link => { ... }) is already handled below in window.onload
+
+        // Issue Report Form Submission
+        if (issueReportForm) {
+            issueReportForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const issueType = document.getElementById('issueType').value;
+                const villageName = document.getElementById('villageName').value;
+                const issueDescription = document.getElementById('issueDescription').value;
+                const contactEmail = document.getElementById('contactEmail').value;
+
+                // Check if a location has been selected on the map
+                if (!selectedLatitude || !selectedLongitude) {
+                    showModal('modalLocationNeeded');
+                    return; // Prevent form submission
+                }
+
+                const newIssue = {
+                    id: Date.now(), // Unique ID
+                    type: issueType,
+                    village: villageName,
+                    description: issueDescription,
+                    contact: contactEmail,
+                    date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
+                    status: 'Pending', // Initial status
+                    latitude: selectedLatitude,
+                    longitude: selectedLongitude
+                };
+
+                reportedIssues.push(newIssue);
+                saveData();
+                updateDashboardCounts();
+                displayFeedbackHistory(); // Update history immediately
+                issueReportForm.reset();
+                // Clear map marker and coordinates after submission
+                if (marker) {
+                    mymap.removeLayer(marker);
+                }
+                selectedLatitude = '';
+                selectedLongitude = '';
+                latitudeInput.value = '';
+                longitudeInput.value = '';
+                coordinatesDisplay.textContent = '';
+
+                showModal('modalReportSuccess');
+                showSection('feedbackHistory'); // Redirect to history after reporting
+            });
+        }
+
+        // AI Login Form Submission
+        if (aiLoginForm) {
+            aiLoginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const password = document.getElementById('aiPassword').value;
+                if (password === AI_PASSWORD) {
+                    sessionStorage.setItem('aiLoggedIn', 'true'); // Keep logged in for session
+                    aiLoginCard.classList.add('hidden');
+                    aiContentCard.classList.remove('hidden');
+                    generateAIInsights(); // Generate insights immediately after login
+                    showModal('modalLoginSuccess');
+                } else {
+                    showModal('modalLoginFailed');
+                }
+                aiLoginForm.reset();
+            });
+        }
+
+        // AI Logout Function
+        function logoutAI() {
+            sessionStorage.removeItem('aiLoggedIn');
+            aiLoginCard.classList.remove('hidden');
+            aiContentCard.classList.add('hidden');
+            // Clear AI insights display on logout
+            aiTopIssuesList.innerHTML = `<li>${translations[currentLanguage]['clickToLoad']}</li>`;
+            aiUrgentVillagesList.innerHTML = `<li>${translations[currentLanguage]['clickToLoad']}</li>`;
+            aiResourceSuggestionsPara.textContent = translations[currentLanguage]['clickToLoad'];
+            showModal('modalLogoutSuccess');
+            showSection('homeDashboard'); // Redirect to home after logout
+        }
+
+        // --- Initial Load ---
+        window.onload = function() {
+            loadData(); // Load data first
+            applyTranslations(); // Apply translations based on loaded language
+            updateDashboardCounts(); // Update dashboard with loaded data
+            displayFeedbackHistory(); // Display history with loaded data
+            setupVoiceRecognition(); // Initialize voice recognition
+
+            // Attach event listeners to welcome language selection buttons
+            document.querySelectorAll('#welcomeSection button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const langCode = e.target.dataset.lang;
+                    selectLanguage(langCode);
+                });
+            });
+
+            // Attach event listeners to language selection tab buttons
+            document.querySelectorAll('#languageSelectionTab .btn-secondary').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const langCode = e.target.dataset.lang;
+                    selectLanguage(langCode);
+                });
+            });
+
+            // Attach event listeners to navigation links
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    showSection(e.target.dataset.section);
+                });
+            });
+
+            // Determine which section to show on load
+            if (currentLanguage && translations[currentLanguage]) { // Check if currentLanguage is valid
+                welcomeSection.classList.remove('active');
+                welcomeSection.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                appContainer.classList.add('block');
+                showSection('homeDashboard'); // Show home dashboard if language already selected
+            } else {
+                welcomeSection.classList.add('active');
+                welcomeSection.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+            }
+        };
+    </script>
+</body>
+</html>
