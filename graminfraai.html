@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Village Infrastructure Hub</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS (for OpenStreetMap) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .section {
+            display: none; /* Hidden by default, shown by JS */
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .section.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card {
+            background-color: #fff;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn-primary {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem; /* rounded-lg */
+            font-weight: 500; /* font-medium */
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca; /* indigo-700 */
+        }
+        .btn-secondary {
+            background-color: #e5e7eb; /* gray-200 */
+            color: #4b5563; /* gray-700 */
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background-color: #d1d5db; /* gray-300 */
+        }
+        input[type="text"], input[type="email"], input[type="password"], textarea, select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db; /* gray-300 */
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, textarea:focus, select:focus {
+            border-color: #6366f1; /* indigo-500 */
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        .nav-link {
+            cursor: pointer;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s ease;
+        }
+        .nav-link:hover {
+            background-color: #e0e7ff; /* indigo-100 */
+        }
+        .nav-link.active {
+            background-color: #c7d2fe; /* indigo-200 */
+            font-weight: 600;
+            color: #3730a3; /* indigo-800 */
+        }
+        /* Custom modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 0.75rem;
+            width: 80%; /* Could be more responsive */
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        /* Map specific styles */
+        #mapid {
+            height: 300px; /* Fixed height for the map */
+            width: 100%;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 1rem auto;
+            display: none; /* Hidden by default */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .voice-input-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .voice-input-button {
+            background-color: #10b981; /* emerald-500 */
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+        .voice-input-button:hover {
+            background-color: #059669; /* emerald-600 */
+        }
+        .voice-input-button.recording {
+            background-color: #ef4444; /* red-500 */
+        }
+        .voice-input-button.recording:hover {
+            background-color: #dc2626; /* red-600 */
+        }
+        .mic-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Modal for messages -->
+    <div id="messageModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <p id="modalMessage"></p>
+            <button class="btn-primary mt-4" onclick="closeModal()">OK</button>
+        </div>
+    </div>
+
+    <!-- Welcome & Language Selection Section -->
+    <section id="welcomeSection" class="section active flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-4">
+        <div class="text-center">
+            <h1 class="text-5xl md:text-6xl font-bold mb-6 drop-shadow-lg">Welcome to Village Infrastructure Hub</h1>
+            <p class="text-xl md:text-2xl mb-8">Empowering communities through better infrastructure.</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button class="btn-secondary bg-white text-indigo-700 hover:bg-gray-100" onclick="selectLanguage('en')">English</button>
+                <button class="btn-secondary bg-white text-indigo-700 hover:bg-gray-100" onclick="selectLanguage('hi')">हिंदी</button>
+                <button class="btn-secondary bg-white text-indigo-700 hover:bg-gray-100" onclick="selectLanguage('bn')">বাংলা</button>
+                <!-- Add more languages as needed -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Application Container -->
+    <div id="appContainer" class="hidden min-h-screen bg-gray-100">
+        <!-- Navigation Bar -->
+        <nav class="bg-white shadow-md py-4">
+            <div class="container flex flex-col md:flex-row justify-between items-center">
+                <h2 class="text-2xl font-bold text-indigo-700 mb-4 md:mb-0">Gram Infra.AI</h2>
+                <div class="flex flex-wrap gap-2 md:gap-4 text-gray-700 text-sm md:text-base">
+                    <a class="nav-link" data-section="languageSelectionTab">Language</a>
+                    <a class="nav-link active" data-section="homeDashboard">Home</a>
+                    <a class="nav-link" data-section="reportIssue">Report Issue</a>
+                    <a class="nav-link" data-section="progressReport">Progress Report</a>
+                    <a class="nav-link" data-section="feedbackHistory">Feedback History</a>
+                    <a class="nav-link" data-section="aiInsights">AI Insights (Gov/NGO)</a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Home Dashboard Section -->
+        <section id="homeDashboard" class="section active container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Home Dashboard</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="card">
+                    <h3 class="text-xl font-semibold mb-3">Total Issues Reported</h3>
+                    <p class="text-4xl font-bold text-indigo-600" id="totalIssues">0</p>
+                    <p class="text-gray-500 mt-2">Across all villages</p>
+                </div>
+                <div class="card">
+                    <h3 class="text-xl font-semibold mb-3">Issues Resolved</h3>
+                    <p class="text-4xl font-bold text-green-600" id="resolvedIssues">0</p>
+                    <p class="text-gray-500 mt-2">Successful interventions</p>
+                </div>
+                <div class="card">
+                    <h3 class="text-xl font-semibold mb-3">Top Infrastructure Needs</h3>
+                    <ul class="list-disc list-inside text-gray-700" id="topNeedsList">
+                        <li>Roads & Connectivity</li>
+                        <li>Water Supply</li>
+                        <li>Electricity</li>
+                        <li>Sanitation</li>
+                    </ul>
+                </div>
+                <div class="card col-span-1 md:col-span-2 lg:col-span-3">
+                    <h3 class="text-xl font-semibold mb-3">About Poor Infrastructure in Villages</h3>
+                    <p class="text-gray-700 leading-relaxed">
+                        Poor infrastructure in villages significantly hinders socio-economic development, impacting the quality of life for millions. Issues such as unpaved roads, inadequate water supply, unreliable electricity, and lack of proper sanitation facilities are prevalent. This platform aims to bridge the gap between citizens and authorities by providing a streamlined way to report issues, track progress, and gather data for informed decision-making. By empowering villagers to voice their concerns, we can collectively work towards building more resilient and prosperous rural communities.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Report an Issue Section -->
+        <section id="reportIssue" class="section container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Report a New Issue</h2>
+            <div class="card">
+                <form id="issueReportForm">
+                    <div class="mb-4">
+                        <label for="issueType" class="block text-gray-700 text-sm font-bold mb-2">Type of Issue:</label>
+                        <select id="issueType" name="issueType" required>
+                            <option value="">Select an issue type</option>
+                            <option value="Roads">Roads & Connectivity</option>
+                            <option value="Water">Water Supply</option>
+                            <option value="Electricity">Electricity</option>
+                            <option value="Sanitation">Sanitation & Drainage</option>
+                            <option value="Education">Education Facilities</option>
+                            <option value="Healthcare">Healthcare Facilities</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="villageName" class="block text-gray-700 text-sm font-bold mb-2">Village Name:</label>
+                        <input type="text" id="villageName" name="villageName" placeholder="e.g., Rampur" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="issueDescription" class="block text-gray-700 text-sm font-bold mb-2">Description:</label>
+                        <div class="voice-input-container">
+                            <textarea id="issueDescription" name="issueDescription" rows="5" placeholder="Describe the issue in detail or click the microphone to speak..." required></textarea>
+                            <button type="button" id="voiceInputBtn" class="voice-input-button" title="Speak description">
+                                <svg class="mic-icon" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0 5 5 0 01-5 5v1.085l3.97 3.97a1 1 0 101.414-1.414L12 14.586V13a1 1 0 10-2 0v1.586l-1.97-1.97a1 1 0 10-1.414 1.414l3.97 3.97V19a1 1 0 102 0v-.586l1.97 1.97a1 1 0 101.414-1.414L14 17.586V16a1 1 0 10-2 0v1.586l-1.97 1.97a1 1 0 10-1.414 1.414l-3.97-3.97z" clip-rule="evenodd"></path></svg>
+                                <span id="voiceStatus">Speak</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Mark Location on Map:</label>
+                        <div id="mapid"></div>
+                        <p class="text-sm text-gray-600 mt-2">Click on the map to place a marker at the issue location.</p>
+                        <input type="hidden" id="latitude" name="latitude">
+                        <input type="hidden" id="longitude" name="longitude">
+                        <p id="coordinatesDisplay" class="text-sm text-gray-700 mt-1"></p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="contactEmail" class="block text-gray-700 text-sm font-bold mb-2">Your Email (Optional):</label>
+                        <input type="email" id="contactEmail" name="contactEmail" placeholder="your.email@example.com">
+                    </div>
+                    <button type="submit" class="btn-primary">Submit Report</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Progress Report Section -->
+        <section id="progressReport" class="section container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Progress Report</h2>
+            <div class="card">
+                <p class="text-gray-700 mb-4">This section provides a summary of infrastructure development progress across villages. This report can be updated manually or generated by AI based on resolved issues and project completions.</p>
+                <div id="reportContent" class="space-y-4">
+                    <h3 class="text-xl font-semibold mb-3">Overall Progress Summary</h3>
+                    <p class="text-gray-700">
+                        As of <span id="reportDate">July 22, 2025</span>, significant strides have been made in addressing infrastructure challenges in rural areas.
+                        A total of <span class="font-bold" id="reportResolvedCount">0</span> issues have been successfully resolved, demonstrating effective intervention.
+                        The primary focus areas for improvement continue to be <span class="font-bold" id="reportTopIssue">roads and water supply</span>.
+                    </p>
+                    <h3 class="text-xl font-semibold mb-3">Key Achievements</h3>
+                    <ul class="list-disc list-inside text-gray-700">
+                        <li>Completion of 5 km of new rural roads in the last quarter.</li>
+                        <li>Installation of 10 new hand pumps providing clean water access to 7 villages.</li>
+                        <li>Upgradation of electricity infrastructure in 3 villages, reducing power outages.</li>
+                    </ul>
+                    <h3 class="text-xl font-semibold mb-3">Upcoming Initiatives</h3>
+                    <ul class="list-disc list-inside text-gray-700">
+                        <li>Planned sanitation drive in 5 high-priority villages.</li>
+                        <li>New school building construction to commence in Rampur by Q4 2025.</li>
+                    </ul>
+                </div>
+                <button class="btn-primary mt-6" onclick="updateProgressReport()">Update Report</button>
+            </div>
+        </section>
+
+        <!-- Citizen Feedback History Section -->
+        <section id="feedbackHistory" class="section container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Your Feedback History</h2>
+            <div class="card">
+                <p class="text-gray-700 mb-4">View the issues you have reported previously and their current status.</p>
+                <div id="historyList" class="space-y-4">
+                    <p class="text-gray-500" id="noHistoryMessage">No issues reported yet.</p>
+                    <!-- Reported issues will be dynamically added here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Insights (for Government/NGO Users) Section -->
+        <section id="aiInsights" class="section container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">AI Insights (Government/NGO Users)</h2>
+            <div class="card" id="aiLoginCard">
+                <p class="mb-4 text-gray-700">This section provides data-driven insights for authorized government and NGO users. Please log in to proceed.</p>
+                <form id="aiLoginForm">
+                    <div class="mb-4">
+                        <label for="aiPassword" class="block text-gray-700 text-sm font-bold mb-2">Password:</label>
+                        <input type="password" id="aiPassword" name="aiPassword" placeholder="Enter password" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Login</button>
+                </form>
+            </div>
+
+            <div class="card hidden" id="aiContentCard">
+                <h3 class="text-xl font-semibold mb-3">Infrastructure Needs Analysis</h3>
+                <p class="text-gray-700 mb-4" id="aiIntroText">
+                    Leveraging AI to identify critical infrastructure gaps and prioritize interventions. Click "Generate Insights" to see the latest analysis.
+                </p>
+                <button class="btn-primary mb-6" onclick="generateAIInsights()">Generate Insights</button>
+
+                <div id="aiInsightsOutput">
+                    <div class="loading-spinner" id="aiLoadingSpinner"></div>
+                    <!-- AI generated content will be dynamically added here -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-lg mb-2">Top Reported Issues:</h4>
+                        <ul class="list-disc list-inside text-gray-700" id="aiTopIssues">
+                            <li>Click "Generate Insights" to load data.</li>
+                        </ul>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="font-medium text-lg mb-2">Villages Requiring Urgent Attention:</h4>
+                        <ul class="list-disc list-inside text-gray-700" id="aiUrgentVillages">
+                            <li>Click "Generate Insights" to load data.</li>
+                        </ul>
+                    </div>
+                    <div class="mb-6">
+                        <h4 class="font-medium text-lg mb-2">Resource Allocation Suggestions:</h4>
+                        <p class="text-gray-700" id="aiResourceSuggestions">
+                            Click "Generate Insights" to load data.
+                        </p>
+                    </div>
+                </div>
+                <button class="btn-secondary" onclick="logoutAI()">Logout</button>
+            </div>
+        </section>
+
+        <!-- Language Selection Tab -->
+        <section id="languageSelectionTab" class="section container py-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Select Your Language</h2>
+            <div class="card">
+                <p class="text-gray-700 mb-6">Choose your preferred language for the application interface:</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <button class="btn-secondary" onclick="selectLanguage('en')">English</button>
+                    <button class="btn-secondary" onclick="selectLanguage('hi')">हिंदी (Hindi)</button>
+                    <button class="btn-secondary" onclick="selectLanguage('bn')">বাংলা (Bengali)</button>
+                    <button class="btn-secondary" onclick="selectLanguage('ta')">தமிழ் (Tamil)</button>
+                    <button class="btn-secondary" onclick="selectLanguage('te')">తెలుగు (Telugu)</button>
+                    <button class="btn-secondary" onclick="selectLanguage('mr')">मराठी (Marathi)</button>
+                    <button class="btn-secondary" onclick="selectLanguage('gu')">ગુજરાતી (Gujarati)</button>
+                    <button class="btn-secondary" onclick="selectLanguage('kn')">ಕನ್ನಡ (Kannada)</button>
+                    <button class="btn-secondary" onclick="selectLanguage('ml')">മലയാളം (Malayalam)</button>
+                    <button class="btn-secondary" onclick="selectLanguage('pa')">ਪੰਜਾਬੀ (Punjabi)</button>
+                    <button class="btn-secondary" onclick="selectLanguage('ur')">اردو (Urdu)</button>
+                    <button class="btn-secondary" onclick="selectLanguage('or')">ଓଡ଼ିଆ (Odia)</button>
+                </div>
+                <p class="text-sm text-gray-500 mt-6">Note: Changing the language here will update the interface text where translations are available. Data content will remain in its original input language.</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- Leaflet JS (for OpenStreetMap) -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Global variables for language and data
+        let currentLanguage = 'en';
+        let reportedIssues = []; // Stores reported issues
+        const AI_PASSWORD = "admin"; // Simple password for AI Insights
+
+        // Map variables
+        let mymap; // Leaflet map instance
+        let marker; // Leaflet marker instance
+        let selectedLatitude = '';
+        let selectedLongitude = '';
+
+        // Web Speech API variables
+        let recognition;
+        let isRecording = false;
+
+        // DOM Elements
+        const welcomeSection = document.getElementById('welcomeSection');
+        const appContainer = document.getElementById('appContainer');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const sections = document.querySelectorAll('.section');
+        const issueReportForm = document.getElementById('issueReportForm');
+        const historyList = document.getElementById('historyList');
+        const noHistoryMessage = document.getElementById('noHistoryMessage');
+        const totalIssuesDisplay = document.getElementById('totalIssues');
+        const resolvedIssuesDisplay = document.getElementById('resolvedIssues');
+        const aiLoginForm = document.getElementById('aiLoginForm');
+        const aiLoginCard = document.getElementById('aiLoginCard');
+        const aiContentCard = document.getElementById('aiContentCard');
+        const messageModal = document.getElementById('messageModal');
+        const modalMessage = document.getElementById('modalMessage');
+        const closeModalButton = document.querySelector('#messageModal .close-button');
+        const latitudeInput = document.getElementById('latitude');
+        const longitudeInput = document.getElementById('longitude');
+        const coordinatesDisplay = document.getElementById('coordinatesDisplay');
+        const aiTopIssuesList = document.getElementById('aiTopIssues');
+        const aiUrgentVillagesList = document.getElementById('aiUrgentVillages');
+        const aiResourceSuggestionsPara = document.getElementById('aiResourceSuggestions');
+        const topNeedsListDashboard = document.getElementById('topNeedsList');
+        const aiLoadingSpinner = document.getElementById('aiLoadingSpinner');
+        const issueDescriptionTextarea = document.getElementById('issueDescription');
+        const voiceInputBtn = document.getElementById('voiceInputBtn');
+        const voiceStatusSpan = document.getElementById('voiceStatus');
+        const reportDateSpan = document.getElementById('reportDate');
+        const reportResolvedCountSpan = document.getElementById('reportResolvedCount');
+        const reportTopIssueSpan = document.getElementById('reportTopIssue');
+
+
+        // --- Utility Functions ---
+
+        // Function to show custom modal
+        function showModal(message) {
+            modalMessage.textContent = message;
+            messageModal.style.display = 'flex'; // Use flex to center
+        }
+
+        // Function to close custom modal
+        function closeModal() {
+            messageModal.style.display = 'none';
+        }
+
+        // Close modal when clicking on the close button
+        if (closeModalButton) {
+            closeModalButton.onclick = closeModal;
+        }
+
+        // Close modal when clicking outside of the modal content
+        window.onclick = function(event) {
+            if (event.target == messageModal) {
+                closeModal();
+            }
+        }
+
+        // Function to update dashboard counts and top needs
+        function updateDashboardCounts() {
+            totalIssuesDisplay.textContent = reportedIssues.length;
+            const resolvedCount = reportedIssues.filter(issue => issue.status === 'Resolved').length;
+            resolvedIssuesDisplay.textContent = resolvedCount;
+
+            // Update Top Infrastructure Needs on Dashboard
+            const issueTypeCounts = {};
+            reportedIssues.forEach(issue => {
+                issueTypeCounts[issue.type] = (issueTypeCounts[issue.type] || 0) + 1;
+            });
+
+            const sortedIssueTypes = Object.entries(issueTypeCounts).sort(([, countA], [, countB]) => countB - countA);
+
+            topNeedsListDashboard.innerHTML = ''; // Clear existing list
+            if (sortedIssueTypes.length === 0) {
+                topNeedsListDashboard.innerHTML = '<li>No issues reported yet.</li>';
+            } else {
+                sortedIssueTypes.slice(0, 5).forEach(([type, count]) => { // Show top 5
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${type} (${count} reports)`;
+                    topNeedsListDashboard.appendChild(listItem);
+                });
+            }
+        }
+
+        // Function to save data to localStorage
+        function saveData() {
+            localStorage.setItem('reportedIssues', JSON.stringify(reportedIssues));
+            localStorage.setItem('currentLanguage', currentLanguage);
+        }
+
+        // Function to load data from localStorage
+        function loadData() {
+            const storedIssues = localStorage.getItem('reportedIssues');
+            if (storedIssues) {
+                reportedIssues = JSON.parse(storedIssues);
+            }
+            const storedLanguage = localStorage.getItem('currentLanguage');
+            if (storedLanguage) {
+                currentLanguage = storedLanguage;
+            }
+        }
+
+        // Function to display reported issues in history
+        function displayFeedbackHistory() {
+            historyList.innerHTML = ''; // Clear previous entries
+            if (reportedIssues.length === 0) {
+                noHistoryMessage.style.display = 'block';
+            } else {
+                noHistoryMessage.style.display = 'none';
+                reportedIssues.forEach((issue, index) => {
+                    const issueCard = document.createElement('div');
+                    issueCard.className = 'p-4 border border-gray-200 rounded-lg bg-gray-50';
+                    let locationInfo = '';
+                    if (issue.latitude && issue.longitude) {
+                        locationInfo = `<p class="text-sm text-gray-500 mt-1">Location: Lat ${issue.latitude.toFixed(4)}, Lon ${issue.longitude.toFixed(4)}</p>`;
+                    }
+                    issueCard.innerHTML = `
+                        <h4 class="font-semibold text-lg">${issue.type} in ${issue.village}</h4>
+                        <p class="text-sm text-gray-600">Reported: ${issue.date} | Status: <span class="${issue.status === 'Resolved' ? 'text-green-600' : 'text-yellow-600'} font-medium">${issue.status}</span></p>
+                        <p class="text-sm text-gray-700 mt-1">${issue.description}</p>
+                        ${locationInfo}
+                        <button class="text-red-500 hover:text-red-700 text-sm mt-2" onclick="deleteIssue(${index})">Delete</button>
+                    `;
+                    historyList.appendChild(issueCard);
+                });
+            }
+        }
+
+        // Function to delete an issue
+        function deleteIssue(index) {
+            reportedIssues.splice(index, 1);
+            saveData();
+            displayFeedbackHistory();
+            updateDashboardCounts();
+            showModal('Issue deleted successfully!');
+        }
+
+        // --- Leaflet (OpenStreetMap) Map Initialization ---
+        function initializeMap() {
+            // Check if map is already initialized to prevent re-initialization
+            if (mymap) {
+                mymap.remove(); // Remove existing map instance
+            }
+
+            // Default coordinates (e.g., center of India or a generic village area)
+            // Jaipur, Rajasthan, India coordinates: 26.9124, 75.7873
+            mymap = L.map('mapid').setView([26.9124, 75.7873], 10); // Set view to Jaipur, zoom level 10
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(mymap);
+
+            // Clear any previous marker
+            if (marker) {
+                mymap.removeLayer(marker);
+            }
+            selectedLatitude = '';
+            selectedLongitude = '';
+            latitudeInput.value = '';
+            longitudeInput.value = '';
+            coordinatesDisplay.textContent = '';
+
+            mymap.on('click', function(e) {
+                // Remove existing marker if any
+                if (marker) {
+                    mymap.removeLayer(marker);
+                }
+
+                // Add new marker
+                marker = L.marker(e.latlng).addTo(mymap);
+                selectedLatitude = e.latlng.lat;
+                selectedLongitude = e.latlng.lng;
+
+                // Update hidden input fields and display
+                latitudeInput.value = selectedLatitude;
+                longitudeInput.value = selectedLongitude;
+                coordinatesDisplay.textContent = `Selected: Lat ${selectedLatitude.toFixed(4)}, Lon ${selectedLongitude.toFixed(4)}`;
+
+                showModal(`Location selected: Latitude ${selectedLatitude.toFixed(4)}, Longitude ${selectedLongitude.toFixed(4)}`);
+            });
+        }
+
+        // --- Web Speech API (Voice Command) Logic ---
+        function setupVoiceRecognition() {
+            // Check if SpeechRecognition is supported by the browser
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                voiceInputBtn.style.display = 'none'; // Hide button if not supported
+                showModal('Voice input is not supported by your browser. Please use the keyboard to type the description.');
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = false; // Stop after a single utterance
+            recognition.lang = 'en-IN'; // Set language to English (India)
+            recognition.interimResults = false; // Only return final results
+
+            recognition.onstart = () => {
+                isRecording = true;
+                voiceInputBtn.classList.add('recording');
+                voiceStatusSpan.textContent = 'Listening...';
+                issueDescriptionTextarea.placeholder = 'Speak now...';
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                issueDescriptionTextarea.value = transcript; // Set the transcribed text
+                showModal('Voice input received!');
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                showModal(`Voice input error: ${event.error}. Please try again.`);
+                isRecording = false;
+                voiceInputBtn.classList.remove('recording');
+                voiceStatusSpan.textContent = 'Speak';
+                issueDescriptionTextarea.placeholder = 'Describe the issue in detail or click the microphone to speak...';
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                voiceInputBtn.classList.remove('recording');
+                voiceStatusSpan.textContent = 'Speak';
+                issueDescriptionTextarea.placeholder = 'Describe the issue in detail or click the microphone to speak...';
+            };
+
+            voiceInputBtn.addEventListener('click', () => {
+                if (isRecording) {
+                    recognition.stop();
+                } else {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error('Error starting speech recognition:', e);
+                        showModal('Could not start voice input. Please ensure microphone access is granted.');
+                    }
+                }
+            });
+        }
+
+        // --- AI Insights Logic ---
+        async function generateAIInsights() {
+            if (reportedIssues.length === 0) {
+                aiTopIssuesList.innerHTML = '<li>No issues reported yet.</li>';
+                aiUrgentVillagesList.innerHTML = '<li>No data yet.</li>';
+                aiResourceSuggestionsPara.textContent = 'No data yet. Report some issues to generate insights.';
+                showModal('No issues reported yet to generate insights from. Please report some issues first.');
+                return;
+            }
+
+            aiLoadingSpinner.style.display = 'block'; // Show loading spinner
+            aiTopIssuesList.innerHTML = '<li>Generating insights...</li>';
+            aiUrgentVillagesList.innerHTML = '<li>Generating insights...</li>';
+            aiResourceSuggestionsPara.textContent = 'Generating insights...';
+
+            const prompt = `Analyze the following reported infrastructure issues from various villages and provide:
+            1. Top 3 most reported issues with their percentage out of total reports and count.
+            2. Top 3 villages requiring urgent attention (based on the highest number of reported issues).
+            3. Resource allocation suggestions based on the identified top issues.
+
+            Provide the output in a JSON format with the following structure:
+            {
+                "topIssues": [
+                    {"type": "Issue Type", "percentage": "XX.X%", "count": N},
+                    ...
+                ],
+                "urgentVillages": [
+                    {"village": "Village Name", "count": N},
+                    ...
+                ],
+                "resourceSuggestions": "Detailed suggestion text."
+            }
+
+            Here are the reported issues:
+            ${JSON.stringify(reportedIssues, null, 2)}`;
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = {
+                contents: chatHistory,
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "topIssues": {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "type": { "type": "STRING" },
+                                        "percentage": { "type": "STRING" },
+                                        "count": { "type": "NUMBER" }
+                                    }
+                                }
+                            },
+                            "urgentVillages": {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "village": { "type": "STRING" },
+                                        "count": { "type": "NUMBER" }
+                                    }
+                                }
+                            },
+                            "resourceSuggestions": { "type": "STRING" }
+                        },
+                        "propertyOrdering": ["topIssues", "urgentVillages", "resourceSuggestions"]
+                    }
+                }
+            };
+
+            const apiKey = ""; // Canvas will automatically provide the API key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const jsonResponseText = result.candidates[0].content.parts[0].text;
+                    const insights = JSON.parse(jsonResponseText);
+
+                    // Update UI with AI insights
+                    aiTopIssuesList.innerHTML = '';
+                    if (insights.topIssues && insights.topIssues.length > 0) {
+                        insights.topIssues.forEach(issue => {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = `${issue.type}: ${issue.percentage} of reports (${issue.count} instances)`;
+                            aiTopIssuesList.appendChild(listItem);
+                        });
+                    } else {
+                        aiTopIssuesList.innerHTML = '<li>No specific issue trends found by AI.</li>';
+                    }
+
+                    aiUrgentVillagesList.innerHTML = '';
+                    if (insights.urgentVillages && insights.urgentVillages.length > 0) {
+                        insights.urgentVillages.forEach(village => {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = `${village.village} (${village.count} issues reported)`;
+                            aiUrgentVillagesList.appendChild(listItem);
+                        });
+                    } else {
+                        aiUrgentVillagesList.innerHTML = '<li>No specific villages identified for urgent attention by AI.</li>';
+                    }
+
+                    aiResourceSuggestionsPara.textContent = insights.resourceSuggestions || 'AI could not generate specific resource allocation suggestions.';
+                    showModal('Insights generated successfully by AI!');
+
+                } else {
+                    showModal('Failed to get insights from AI. Please try again.');
+                    aiTopIssuesList.innerHTML = '<li>Error generating insights.</li>';
+                    aiUrgentVillagesList.innerHTML = '<li>Error generating insights.</li>';
+                    aiResourceSuggestionsPara.textContent = 'Error generating insights.';
+                }
+            } catch (error) {
+                console.error('Error calling Gemini API:', error);
+                showModal('An error occurred while connecting to the AI. Please check your internet connection and try again.');
+                aiTopIssuesList.innerHTML = '<li>Connection error.</li>';
+                aiUrgentVillagesList.innerHTML = '<li>Connection error.</li>';
+                aiResourceSuggestionsPara.textContent = 'Connection error.';
+            } finally {
+                aiLoadingSpinner.style.display = 'none'; // Hide loading spinner
+            }
+        }
+
+        // --- Progress Report Logic ---
+        function updateProgressReport() {
+            const resolvedCount = reportedIssues.filter(issue => issue.status === 'Resolved').length;
+            reportResolvedCountSpan.textContent = resolvedCount;
+
+            const issueTypeCounts = {};
+            reportedIssues.forEach(issue => {
+                issueTypeCounts[issue.type] = (issueTypeCounts[issue.type] || 0) + 1;
+            });
+            const sortedIssueTypes = Object.entries(issueTypeCounts).sort(([, countA], [, countB]) => countB - countA);
+
+            if (sortedIssueTypes.length > 0) {
+                reportTopIssueSpan.textContent = sortedIssueTypes[0][0].toLowerCase();
+                if (sortedIssueTypes.length > 1) {
+                    reportTopIssueSpan.textContent += ` and ${sortedIssueTypes[1][0].toLowerCase()}`;
+                }
+            } else {
+                reportTopIssueSpan.textContent = 'general infrastructure issues';
+            }
+
+            const today = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            reportDateSpan.textContent = today.toLocaleDateString('en-US', options);
+
+            showModal('Progress Report updated!');
+        }
+
+
+        // --- Event Handlers ---
+
+        // Language Selection
+        function selectLanguage(lang) {
+            currentLanguage = lang;
+            saveData();
+            welcomeSection.classList.remove('active');
+            welcomeSection.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            appContainer.classList.add('block');
+            // In a real app, you'd load translations here
+            showModal(`Language set to ${lang.toUpperCase()}.`); // Provide feedback
+            showSection('homeDashboard'); // Go to dashboard after language selection
+        }
+
+        // Section Navigation
+        function showSection(sectionId) {
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(sectionId).classList.add('active');
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.dataset.section === sectionId) {
+                    link.classList.add('active');
+                }
+            });
+
+            // Specific logic for map initialization when 'Report Issue' section is active
+            if (sectionId === 'reportIssue') {
+                // Ensure the map container is visible before initializing
+                setTimeout(() => {
+                    initializeMap(); // Call Leaflet map initialization
+                    if (mymap) {
+                        mymap.invalidateSize(); // Invalidate size for Leaflet map
+                    }
+                }, 100); // A small delay to ensure the div is rendered and visible
+            } else {
+                // If navigating away from the map section, clear the marker and coordinates
+                if (marker) {
+                    mymap.removeLayer(marker);
+                }
+                selectedLatitude = '';
+                selectedLongitude = '';
+                latitudeInput.value = '';
+                longitudeInput.value = '';
+                coordinatesDisplay.textContent = '';
+            }
+
+            // Specific logic for AI Insights section
+            if (sectionId === 'aiInsights') {
+                if (sessionStorage.getItem('aiLoggedIn') === 'true') {
+                    aiLoginCard.classList.add('hidden');
+                    aiContentCard.classList.remove('hidden');
+                    // Automatically generate insights when logged in and section is viewed
+                    generateAIInsights();
+                } else {
+                    aiLoginCard.classList.remove('hidden');
+                    aiContentCard.classList.add('hidden');
+                }
+            }
+            // Specific logic for Progress Report section
+            if (sectionId === 'progressReport') {
+                updateProgressReport(); // Update the report content when section is viewed
+            }
+        }
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                showSection(e.target.dataset.section);
+            });
+        });
+
+        // Issue Report Form Submission
+        if (issueReportForm) {
+            issueReportForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const issueType = document.getElementById('issueType').value;
+                const villageName = document.getElementById('villageName').value;
+                const issueDescription = document.getElementById('issueDescription').value;
+                const contactEmail = document.getElementById('contactEmail').value;
+
+                // Check if a location has been selected on the map
+                if (!selectedLatitude || !selectedLongitude) {
+                    showModal('Please click on the map to select the issue location.');
+                    return; // Prevent form submission
+                }
+
+                const newIssue = {
+                    id: Date.now(), // Unique ID
+                    type: issueType,
+                    village: villageName,
+                    description: issueDescription,
+                    contact: contactEmail,
+                    date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
+                    status: 'Pending', // Initial status
+                    latitude: selectedLatitude,
+                    longitude: selectedLongitude
+                };
+
+                reportedIssues.push(newIssue);
+                saveData();
+                updateDashboardCounts();
+                displayFeedbackHistory(); // Update history immediately
+                issueReportForm.reset();
+                // Clear map marker and coordinates after submission
+                if (marker) {
+                    mymap.removeLayer(marker);
+                }
+                selectedLatitude = '';
+                selectedLongitude = '';
+                latitudeInput.value = '';
+                longitudeInput.value = '';
+                coordinatesDisplay.textContent = '';
+
+                showModal('Your issue has been reported successfully! Thank you for your feedback.');
+                showSection('feedbackHistory'); // Redirect to history after reporting
+            });
+        }
+
+        // AI Login Form Submission
+        if (aiLoginForm) {
+            aiLoginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const password = document.getElementById('aiPassword').value;
+                if (password === AI_PASSWORD) {
+                    sessionStorage.setItem('aiLoggedIn', 'true'); // Keep logged in for session
+                    aiLoginCard.classList.add('hidden');
+                    aiContentCard.classList.remove('hidden');
+                    generateAIInsights(); // Generate insights immediately after login
+                    showModal('Login successful! Welcome, Government/NGO User.');
+                } else {
+                    showModal('Incorrect password. Please try again.');
+                }
+                aiLoginForm.reset();
+            });
+        }
+
+        // AI Logout Function
+        function logoutAI() {
+            sessionStorage.removeItem('aiLoggedIn');
+            aiLoginCard.classList.remove('hidden');
+            aiContentCard.classList.add('hidden');
+            // Clear AI insights display on logout
+            aiTopIssuesList.innerHTML = '<li>Click "Generate Insights" to load data.</li>';
+            aiUrgentVillagesList.innerHTML = '<li>Click "Generate Insights" to load data.</li>';
+            aiResourceSuggestionsPara.textContent = 'Click "Generate Insights" to load data.';
+            showModal('Logged out successfully.');
+            showSection('homeDashboard'); // Redirect to home after logout
+        }
+
+        // --- Initial Load ---
+        window.onload = function() {
+            loadData(); // Load data first
+            updateDashboardCounts(); // Update dashboard with loaded data
+            displayFeedbackHistory(); // Display history with loaded data
+            setupVoiceRecognition(); // Initialize voice recognition
+
+            // Determine which section to show on load
+            if (currentLanguage === 'en' || currentLanguage === 'hi' || currentLanguage === 'bn') {
+                welcomeSection.classList.remove('active');
+                welcomeSection.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                appContainer.classList.add('block');
+                showSection('homeDashboard'); // Show home dashboard if language already selected
+            } else {
+                welcomeSection.classList.add('active');
+                welcomeSection.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+            }
+        };
+    </script>
+</body>
+</html>
